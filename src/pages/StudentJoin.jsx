@@ -30,13 +30,16 @@ const StudentJoin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Nav */}
-      <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-brand-red font-black text-xl hover:text-red-400 transition-colors">
-          🇪🇸 SpanishVIP
+      <nav
+        className="bg-slate-950 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0"
+        style={{ height: '52px' }}
+      >
+        <Link to="/">
+          <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
         </Link>
-        <span className="text-slate-400 font-semibold">Join a Game</span>
+        <span className="text-slate-400 font-semibold text-sm">Join a Game</span>
       </nav>
 
       {/* Content */}
@@ -48,8 +51,12 @@ const StudentJoin = () => {
           className="w-full max-w-sm"
         >
           {/* Card */}
-          <div className="bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-2xl text-center">
-            <div className="text-5xl mb-4">🎮</div>
+          <div className="bg-slate-900 rounded-2xl p-8 border border-slate-700 shadow-2xl text-center">
+            <img
+              src="/logo_hires_white.png"
+              alt="SpanishVIP"
+              className="h-12 object-contain mx-auto mb-4"
+            />
             <h1 className="text-3xl font-black text-white mb-1">Join a Game</h1>
             <p className="text-slate-400 text-sm mb-8">
               Enter the PIN from your teacher to jump in.
@@ -59,7 +66,7 @@ const StudentJoin = () => {
 
             <p className="text-slate-600 text-xs mt-6">
               Don't have a PIN?{' '}
-              <Link to="/game/multiple-choice/demo" className="text-brand-yellow hover:underline">
+              <Link to="/game/multiple-choice/demo" className="text-yellow-400 hover:underline">
                 Try a demo game →
               </Link>
             </p>
