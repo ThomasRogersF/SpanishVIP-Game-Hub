@@ -83,7 +83,7 @@ const Hub = () => {
   return (
     <div className="min-h-screen bg-[#0f172a]">
       {/* Hero header */}
-      <header className="bg-gradient-to-br from-brand-red via-red-700 to-red-900 py-12 px-6 text-center relative overflow-hidden">
+      <header className="bg-gradient-to-br from-brand-red via-purple-900 to-purple-800 py-12 px-6 text-center relative overflow-hidden">
         {/* Decorative circles */}
         <div className="absolute -top-10 -left-10 w-48 h-48 bg-white/5 rounded-full" />
         <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/5 rounded-full" />
@@ -94,7 +94,7 @@ const Hub = () => {
           transition={{ duration: 0.5 }}
         >
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">
-            🇪🇸 SpanishVIP Game Hub
+            SpanishVIP Game Hub
           </h1>
           <p className="text-red-200 text-lg mb-8">
             Interactive Learning for Corporate Spanish Classes
