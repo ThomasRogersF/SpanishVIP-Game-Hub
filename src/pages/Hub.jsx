@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { checkFirebaseConnection } from '../firebase/healthCheck';
 
 const GAMES = [
   {
@@ -118,6 +119,11 @@ const ShootingStar = ({ delay, top }) => (
 
 const Hub = () => {
   const navigate = useNavigate();
+  const [firebaseStatus, setFirebaseStatus] = useState("checking"); // checking | connected | failed
+
+  useEffect(() => {
+    checkFirebaseConnection().then(setFirebaseStatus);
+  }, []);
 
   const shootingStarConfigs = useMemo(() => [
     { delay: 2, top: 12 },
@@ -204,6 +210,36 @@ const Hub = () => {
           </div>
         </div>
       </header>
+
+      {/* Firebase Status Banner */}
+      {firebaseStatus === "checking" && (
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-sm w-fit mx-auto my-4">
+          <div className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
+          Checking multiplayer connection...
+        </div>
+      )}
+
+      {firebaseStatus === "connected" && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-950 border border-green-700 text-green-300 text-sm w-fit mx-auto my-4"
+        >
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          🟢 Live multiplayer ready — Firebase connected
+        </motion.div>
+      )}
+
+      {firebaseStatus === "failed" && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-950 border border-yellow-700 text-yellow-300 text-sm w-fit mx-auto my-4"
+        >
+          <div className="w-2 h-2 rounded-full bg-yellow-400" />
+          🟡 Demo mode — Add Firebase credentials to .env to enable live multiplayer
+        </motion.div>
+      )}
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 py-10 flex-1 w-full">

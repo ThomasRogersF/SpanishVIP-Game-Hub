@@ -1,7 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getDatabase } from 'firebase/database';
-import { getAuth } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,10 +13,21 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+const isConfigured = Object.values(firebaseConfig).every(Boolean);
 
-export const db = getFirestore(app);
-export const rtdb = getDatabase(app);
-export const auth = getAuth(app);
+let app, db, rtdb, auth;
 
-export default app;
+if (isConfigured) {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  rtdb = getDatabase(app);
+  auth = getAuth(app);
+} else {
+  console.warn("Firebase not configured — running in demo mode. Add .env variables to enable multiplayer.");
+  // Export null-safe stubs so imports don't break
+  db = null;
+  rtdb = null;
+  auth = null;
+}
+
+export { db, rtdb, auth };
