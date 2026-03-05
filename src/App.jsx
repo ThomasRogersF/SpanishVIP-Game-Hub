@@ -6,6 +6,7 @@ import Hub from './pages/Hub';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentJoin from './pages/StudentJoin';
 import GameResults from './pages/GameResults';
+import MultiplayerTest from './pages/MultiplayerTest';
 
 // Games
 import MultipleChoice from './components/games/MultipleChoice/MultipleChoice';
@@ -25,6 +26,7 @@ const App = () => {
         <Route path="/teacher" element={<TeacherDashboard />} />
         <Route path="/join" element={<StudentJoin />} />
         <Route path="/results/:sessionId" element={<GameResults />} />
+        <Route path="/test" element={<MultiplayerTest />} />
 
         {/* Game routes */}
         <Route path="/game/multiple-choice/:sessionId" element={<MultipleChoice />} />

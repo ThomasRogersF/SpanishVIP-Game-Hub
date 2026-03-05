@@ -150,6 +150,12 @@ const TeacherDashboard = () => {
           )}
         </div>
       </div>
+
+      <div className="text-center mt-8 pb-4">
+        <a href="/test" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">
+          🧪 Multiplayer Test Suite
+        </a>
+      </div>
     </div>
   );
 };
