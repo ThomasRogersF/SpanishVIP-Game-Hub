@@ -42,18 +42,21 @@ const TeacherDashboard = () => {
   const gameLabel = GAME_OPTIONS.find((g) => g.value === selectedGame)?.label ?? '';
 
   return (
-    <div className="min-h-screen bg-[#0f172a]">
+    <div className="min-h-screen bg-slate-950">
       {/* Nav */}
-      <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-brand-red font-black text-xl hover:text-red-400 transition-colors">
-          🇪🇸 SpanishVIP
+      <nav
+        className="bg-slate-950 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0"
+        style={{ height: '52px' }}
+      >
+        <Link to="/">
+          <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
         </Link>
-        <span className="text-slate-400 font-semibold">Teacher Dashboard</span>
+        <span className="text-slate-400 font-semibold text-sm">Teacher Dashboard</span>
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Session Creator */}
-        <div className="bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-xl">
+        <div className="bg-slate-900 rounded-2xl p-8 border border-slate-700 shadow-xl">
           <h2 className="text-white font-bold text-2xl mb-1">Create a Session</h2>
           <p className="text-slate-400 text-sm mb-6">
             Choose a game, generate a PIN, and share it with your students.
@@ -64,7 +67,7 @@ const TeacherDashboard = () => {
             <select
               value={selectedGame}
               onChange={(e) => setSelectedGame(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-yellow text-base"
+              className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-base"
             >
               {GAME_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -77,25 +80,25 @@ const TeacherDashboard = () => {
           <button
             onClick={handleCreateSession}
             disabled={creating}
-            className="w-full bg-brand-red hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors text-lg mb-4"
+            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors text-lg mb-4"
           >
             {creating ? 'Creating...' : '⚡ Generate PIN & Start Session'}
           </button>
 
           {notice && (
-            <div className="bg-brand-yellow/10 border border-brand-yellow/30 rounded-lg px-4 py-2 text-brand-yellow text-sm mb-4">
+            <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-2 text-yellow-400 text-sm mb-4">
               {notice}
             </div>
           )}
 
           {currentPin && (
-            <div className="bg-slate-900 rounded-xl p-6 text-center border border-slate-700">
+            <div className="bg-slate-950 rounded-xl p-6 text-center border border-slate-700">
               <p className="text-slate-400 text-sm mb-1">Share this PIN with students</p>
               <p className="text-6xl font-black text-white tracking-[0.2em] my-2">{currentPin}</p>
               <p className="text-slate-500 text-xs mb-4">{gameLabel}</p>
               <Link
                 to={`/game/${selectedGame}/demo`}
-                className="inline-block bg-brand-yellow text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors text-sm"
+                className="inline-block bg-yellow-400 text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors text-sm"
               >
                 Preview Game →
               </Link>
@@ -104,7 +107,7 @@ const TeacherDashboard = () => {
         </div>
 
         {/* Live Monitor */}
-        <div className="bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-xl">
+        <div className="bg-slate-900 rounded-2xl p-8 border border-slate-700 shadow-xl">
           <h2 className="text-white font-bold text-2xl mb-1">Live Monitor</h2>
           <p className="text-slate-400 text-sm mb-6">
             Track student activity and scores in real time.
@@ -112,7 +115,7 @@ const TeacherDashboard = () => {
 
           {currentSessionId ? (
             <div className="space-y-4">
-              <div className="bg-slate-900 rounded-xl p-4 border border-slate-700">
+              <div className="bg-slate-950 rounded-xl p-4 border border-slate-700">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-slate-400 text-sm">Active Session</span>
                   <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">
@@ -123,7 +126,7 @@ const TeacherDashboard = () => {
                 <p className="text-slate-500 text-xs font-mono mt-1">ID: {currentSessionId}</p>
               </div>
 
-              <div className="bg-slate-900 rounded-xl p-4 border border-slate-700 text-center">
+              <div className="bg-slate-950 rounded-xl p-4 border border-slate-700 text-center">
                 <p className="text-slate-500 text-sm">
                   Real-time student monitoring requires Firebase to be configured.
                   <br />
