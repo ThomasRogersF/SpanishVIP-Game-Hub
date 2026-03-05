@@ -201,6 +201,8 @@ const TypeAnswer = () => {
   const inputRef = useRef(null);
   const submitRef = useRef(null);
   const inputValueRef = useRef('');
+  const demoHintCountRef = useRef(0);   // hints used by simulated demo players
+  const demoPendingTimers = useRef([]); // timeout IDs for demo simulation
 
   const question = SAMPLE_QUESTIONS[qIndex];
 
@@ -269,9 +271,32 @@ const TypeAnswer = () => {
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (phase !== 'playing' || sessionId === 'demo') return;
-    // Real mode: no simulation needed
-  }, [phase, qIndex, sessionId]);
+    if (phase !== 'playing' || sessionId !== 'demo') return;
+
+    // Cancel any leftover timers from the previous question
+    demoPendingTimers.current.forEach(clearTimeout);
+    demoPendingTimers.current = [];
+
+    const answers = DEMO_ANSWERS[qIndex] || [];
+    answers.forEach((ans) => {
+      const delay = 5000 + Math.random() * 7000; // 5–12 s random answer time
+      const usedHint = Math.random() < 0.25;     // 25 % chance of hint use
+      if (usedHint) demoHintCountRef.current += 1;
+
+      const id = setTimeout(() => {
+        // Simulation runs in background; scores are tracked via demoHintCountRef.
+        // The Leaderboard component renders its own hardcoded demo players, so no
+        // Firebase write is needed here.
+        void ans; // acknowledge the answer variable (used for hint probability above)
+      }, delay);
+      demoPendingTimers.current.push(id);
+    });
+
+    return () => {
+      demoPendingTimers.current.forEach(clearTimeout);
+      demoPendingTimers.current = [];
+    };
+  }, [phase, qIndex, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Submit handler
@@ -511,6 +536,12 @@ const TypeAnswer = () => {
                 <p className="text-slate-400">Hints used</p>
                 <p className="text-white font-bold text-lg">{hintCountRef.current}</p>
               </div>
+              {sessionId === 'demo' && demoHintCountRef.current > 0 && (
+                <div className="text-center">
+                  <p className="text-slate-400">Demo hints</p>
+                  <p className="text-white font-bold text-lg">{demoHintCountRef.current}</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -575,6 +606,9 @@ const TypeAnswer = () => {
                 setTotalScore(0);
                 totalScoreRef.current = 0;
                 hintCountRef.current = 0;
+                demoHintCountRef.current = 0;
+                demoPendingTimers.current.forEach(clearTimeout);
+                demoPendingTimers.current = [];
                 setResults([]);
                 setInputValue('');
                 inputValueRef.current = '';
