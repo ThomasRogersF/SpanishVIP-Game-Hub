@@ -8,6 +8,7 @@ import Leaderboard from '../../shared/Leaderboard';
 import { isDemo } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -100,6 +101,7 @@ const WordCloudGame = () => {
   const { sessionId = 'demo' } = useParams();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
+  const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
   useEffect(() => {
     if (isDemo(sessionId)) {
@@ -119,7 +121,6 @@ const WordCloudGame = () => {
 
   // ── Phase state machine: waiting → inputting → revealing → …→ finished
   const [phase, setPhase] = useState('waiting');
-  const [countdown, setCountdown] = useState(3);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
 
   // Input state
@@ -168,16 +169,13 @@ const WordCloudGame = () => {
 
   const { timeRemaining, start, reset } = useTimer(30, handleTimeUp);
 
-  // ── Waiting countdown ────────────────────────────────────────────
+  // ── Synced countdown → start inputting ────────────────────────────
   useEffect(() => {
-    if (phase !== 'waiting') return;
-    if (countdown <= 0) {
+    if (isReady && phase === 'waiting') {
       const t = setTimeout(() => setPhase('inputting'), 500);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setCountdown((prev) => prev - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, countdown]);
+  }, [isReady, phase]);
 
   // ── Start timer + focus input on each inputting phase ───────────
   useEffect(() => {
@@ -382,8 +380,8 @@ const WordCloudGame = () => {
     );
   }
 
-  // ── WAITING SCREEN (countdown) ────────────────────────────────
-  if (phase === 'waiting') {
+  // ── COUNTDOWN SCREEN (synced) ────────────────────────────────
+  if (sessionStatus === 'active' && !isReady && syncedCountdown !== null) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex flex-col">
         <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
@@ -396,16 +394,37 @@ const WordCloudGame = () => {
             <p className="text-slate-400 text-xl font-semibold mb-8">Get Ready!</p>
             <AnimatePresence mode="wait">
               <motion.div
-                key={countdown}
+                key={syncedCountdown}
                 initial={{ scale: 1.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.4, opacity: 0 }}
                 transition={{ duration: 0.28, ease: 'easeOut' }}
                 className="text-[9rem] leading-none font-black text-white"
               >
-                {countdown > 0 ? countdown : '🚀'}
+                {syncedCountdown === 0 ? '🚀' : syncedCountdown}
               </motion.div>
             </AnimatePresence>
+            <p className="text-slate-500 text-sm mt-10">
+              All players are starting together
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── WAITING SCREEN (pre-countdown) ────────────────────────────────
+  if (phase === 'waiting' && !isReady) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex flex-col">
+        <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+          <span className="text-brand-red font-black text-xl">🇪🇸 SpanishVIP</span>
+          <span className="text-slate-400 font-semibold">Word Cloud ☁️</span>
+        </nav>
+
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center select-none">
+            <p className="text-slate-400 text-xl font-semibold mb-8">Get Ready!</p>
             <p className="text-slate-500 text-sm mt-10">
               {SAMPLE_PROMPTS.length} prompts · type your answers
             </p>
