@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { createSession } from '../firebase/sessions';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { db } from '../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { createSession, updateSessionStatus, subscribeToSession } from '../firebase/sessions';
 import { generatePin } from '../utils/generatePin';
 import { getQuestionSets } from '../firebase/questionSets';
 
@@ -15,10 +18,15 @@ const GAME_OPTIONS = [
 ];
 
 const TeacherDashboard = () => {
+  const navigate = useNavigate();
   const [selectedGame, setSelectedGame] = useState('multiple-choice');
-  const [creating, setCreating] = useState(false);
-  const [currentPin, setCurrentPin] = useState(null);
-  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [generatedPin, setGeneratedPin] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [sessionStatus, setSessionStatus] = useState('idle'); // idle | creating | waiting | active
+  const [playerCount, setPlayerCount] = useState(0);
+  const [joinedPlayers, setJoinedPlayers] = useState([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [questionLibrary, setQuestionLibrary] = useState([]);
   const [selectedQuestionSet, setSelectedQuestionSet] = useState('');
@@ -35,22 +43,66 @@ const TeacherDashboard = () => {
     setSelectedQuestionSet('');
   }, [selectedGame]);
 
+  // Subscribe to Firestore session doc to track player joins
+  useEffect(() => {
+    if (!sessionId || !db) return;
+    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snap) => {
+      if (snap.exists()) {
+        const players = snap.data().players || {};
+        setJoinedPlayers(Object.values(players));
+        setPlayerCount(Object.keys(players).length);
+      }
+    });
+    return unsubscribe;
+  }, [sessionId]);
+
   const handleCreateSession = async () => {
-    setCreating(true);
+    setIsCreating(true);
+    setError(null);
     setNotice(null);
 
     try {
-      const { sessionId, pin } = await createSession(selectedGame, [], 'teacher-demo');
-      setCurrentPin(pin);
-      setCurrentSessionId(sessionId);
-    } catch {
+      const { sessionId: newSessionId, pin } = await createSession(selectedGame, [], 'teacher');
+      setSessionId(newSessionId);
+      setGeneratedPin(pin);
+      setSessionStatus('waiting');
+
+      // Subscribe to RTDB for fast status updates
+      subscribeToSession(newSessionId, (data) => {
+        if (data?.playerCount) setPlayerCount(data.playerCount);
+      });
+    } catch (err) {
       // Fallback: demo mode without Firebase
       const demoPin = generatePin();
-      setCurrentPin(demoPin);
-      setCurrentSessionId(`demo-${demoPin}`);
+      setGeneratedPin(demoPin);
+      setSessionId(`demo-${demoPin}`);
+      setSessionStatus('waiting');
       setNotice('Demo mode — Firebase not configured. Using a local PIN.');
     } finally {
-      setCreating(false);
+      setIsCreating(false);
+    }
+  };
+
+  const handleStartGame = async () => {
+    if (sessionId) {
+      await updateSessionStatus(sessionId, 'active');
+      setSessionStatus('active');
+      navigate(`/game/${selectedGame}/${sessionId}?role=teacher`);
+    }
+  };
+
+  const handleCancelSession = async () => {
+    if (sessionId) {
+      try {
+        await updateSessionStatus(sessionId, 'finished');
+      } catch {
+        // ignore if Firebase not available
+      }
+      setSessionId(null);
+      setGeneratedPin(null);
+      setSessionStatus('idle');
+      setPlayerCount(0);
+      setJoinedPlayers([]);
     }
   };
 
@@ -82,64 +134,119 @@ const TeacherDashboard = () => {
             Choose a game, generate a PIN, and share it with your students.
           </p>
 
-          <div className="mb-5">
-            <label className="block text-slate-300 text-sm font-semibold mb-2">Game Type</label>
-            <select
-              value={selectedGame}
-              onChange={(e) => setSelectedGame(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-base"
-            >
-              {GAME_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {sessionStatus === 'idle' && (
+            <>
+              <div className="mb-5">
+                <label className="block text-slate-300 text-sm font-semibold mb-2">Game Type</label>
+                <select
+                  value={selectedGame}
+                  onChange={(e) => setSelectedGame(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-base"
+                >
+                  {GAME_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {questionLibrary.length > 0 && (
-            <div className="mb-5">
-              <label className="block text-slate-300 text-sm font-semibold mb-2">Load from Library</label>
-              <select
-                value={selectedQuestionSet}
-                onChange={(e) => setSelectedQuestionSet(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-base"
+              {questionLibrary.length > 0 && (
+                <div className="mb-5">
+                  <label className="block text-slate-300 text-sm font-semibold mb-2">Load from Library</label>
+                  <select
+                    value={selectedQuestionSet}
+                    onChange={(e) => setSelectedQuestionSet(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-base"
+                  >
+                    <option value="">— Select a question set —</option>
+                    {questionLibrary.map((qs) => (
+                      <option key={qs.id} value={qs.id}>
+                        {qs.title || 'Untitled'} ({qs.questionCount || qs.questions?.length || 0} questions)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                onClick={handleCreateSession}
+                disabled={isCreating}
+                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors text-lg mb-4"
               >
-                <option value="">— Select a question set —</option>
-                {questionLibrary.map((qs) => (
-                  <option key={qs.id} value={qs.id}>
-                    {qs.title || 'Untitled'} ({qs.questionCount || qs.questions?.length || 0} questions)
-                  </option>
+                {isCreating ? 'Creating...' : '⚡ Generate PIN & Start Session'}
+              </button>
+
+              {error && (
+                <div className="bg-red-900/40 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-2 mb-4">
+                  {error}
+                </div>
+              )}
+
+              {notice && (
+                <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-2 text-yellow-400 text-sm mb-4">
+                  {notice}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Waiting Room — shown after session is created */}
+          {sessionStatus === 'waiting' && (
+            <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
+              {notice && (
+                <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-2 text-yellow-400 text-sm mb-4">
+                  {notice}
+                </div>
+              )}
+
+              {/* Big PIN display */}
+              <p className="text-slate-400 text-sm mb-2">Share this PIN with your students:</p>
+              <div className="text-6xl font-black text-yellow-400 tracking-widest text-center py-4">
+                {generatedPin}
+              </div>
+
+              {/* Join URL */}
+              <p className="text-slate-400 text-sm text-center mb-4">
+                or go to: <span className="text-white font-mono">{window.location.origin}/join</span>
+              </p>
+
+              {/* Game type */}
+              <p className="text-slate-500 text-xs text-center mb-4">{gameLabel}</p>
+
+              {/* Player count */}
+              <div className="flex items-center gap-2 justify-center text-green-400 mb-4">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span>{playerCount} {playerCount === 1 ? 'student' : 'students'} joined</span>
+              </div>
+
+              {/* Player list - shows nicknames as they join */}
+              <div className="flex flex-wrap gap-2 my-4 min-h-12">
+                {joinedPlayers.map((player) => (
+                  <motion.div
+                    key={player.nickname}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="bg-slate-700 rounded-full px-3 py-1 text-sm text-white flex items-center gap-1"
+                  >
+                    <span>👤</span> {player.nickname}
+                  </motion.div>
                 ))}
-              </select>
-            </div>
-          )}
+              </div>
 
-          <button
-            onClick={handleCreateSession}
-            disabled={creating}
-            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors text-lg mb-4"
-          >
-            {creating ? 'Creating...' : '⚡ Generate PIN & Start Session'}
-          </button>
-
-          {notice && (
-            <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-2 text-yellow-400 text-sm mb-4">
-              {notice}
-            </div>
-          )}
-
-          {currentPin && (
-            <div className="bg-slate-950 rounded-xl p-6 text-center border border-slate-700">
-              <p className="text-slate-400 text-sm mb-1">Share this PIN with students</p>
-              <p className="text-6xl font-black text-white tracking-[0.2em] my-2">{currentPin}</p>
-              <p className="text-slate-500 text-xs mb-4">{gameLabel}</p>
-              <Link
-                to={`/game/${selectedGame}/demo`}
-                className="inline-block bg-yellow-400 text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors text-sm"
+              {/* Start Game button */}
+              <button
+                onClick={handleStartGame}
+                disabled={playerCount === 0}
+                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-xl text-lg transition-all"
               >
-                Preview Game →
-              </Link>
+                {playerCount === 0 ? 'Waiting for students...' : `Start Game with ${playerCount} ${playerCount === 1 ? 'student' : 'students'} →`}
+              </button>
+
+              {/* Cancel session */}
+              <button onClick={handleCancelSession} className="w-full mt-3 text-slate-500 hover:text-slate-300 text-sm">
+                Cancel session
+              </button>
             </div>
           )}
         </div>
@@ -151,27 +258,38 @@ const TeacherDashboard = () => {
             Track student activity and scores in real time.
           </p>
 
-          {currentSessionId ? (
+          {sessionId ? (
             <div className="space-y-4">
               <div className="bg-slate-950 rounded-xl p-4 border border-slate-700">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-slate-400 text-sm">Active Session</span>
-                  <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">
-                    LIVE
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    sessionStatus === 'waiting'
+                      ? 'bg-yellow-500/20 text-yellow-400'
+                      : 'bg-green-500/20 text-green-400'
+                  }`}>
+                    {sessionStatus === 'waiting' ? 'WAITING' : 'LIVE'}
                   </span>
                 </div>
                 <p className="text-white font-semibold">{gameLabel}</p>
-                <p className="text-slate-500 text-xs font-mono mt-1">ID: {currentSessionId}</p>
+                <p className="text-slate-500 text-xs font-mono mt-1">PIN: {generatedPin}</p>
+                <p className="text-slate-600 text-xs font-mono mt-0.5">ID: {sessionId}</p>
               </div>
 
-              <div className="bg-slate-950 rounded-xl p-4 border border-slate-700 text-center">
-                <p className="text-slate-500 text-sm">
-                  Real-time student monitoring requires Firebase to be configured.
-                  <br />
-                  <span className="text-slate-600 text-xs mt-1 block">
-                    Students can still play in demo mode.
-                  </span>
-                </p>
+              <div className="bg-slate-950 rounded-xl p-4 border border-slate-700">
+                <p className="text-slate-400 text-sm font-semibold mb-2">Players ({playerCount})</p>
+                {joinedPlayers.length > 0 ? (
+                  <div className="space-y-1">
+                    {joinedPlayers.map((player) => (
+                      <div key={player.nickname} className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2">
+                        <span className="text-white text-sm">👤 {player.nickname}</span>
+                        <span className="text-slate-400 text-xs">Score: {player.score || 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-600 text-sm">No players yet...</p>
+                )}
               </div>
             </div>
           ) : (

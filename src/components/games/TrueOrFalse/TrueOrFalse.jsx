@@ -5,6 +5,9 @@ import { useTimer } from '../../../hooks/useTimer';
 import { calculateScore } from '../../../utils/scoreCalculator';
 import { updatePlayerScore } from '../../../firebase/leaderboard';
 import Leaderboard from '../../shared/Leaderboard';
+import { isDemo } from '../../../utils/sessionMode';
+import { db } from '../../../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // ── Data ─────────────────────────────────────────────────────────────
 const SAMPLE_QUESTIONS = [
@@ -27,6 +30,24 @@ const TrueOrFalse = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
+  const [sessionStatus, setSessionStatus] = useState('checking');
+
+  useEffect(() => {
+    if (isDemo(sessionId)) {
+      setSessionStatus('active');
+      return;
+    }
+    if (!db) { setSessionStatus('active'); return; }
+    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snap) => {
+      if (snap.exists()) {
+        const status = snap.data().status;
+        setSessionStatus(status);
+      } else {
+        setSessionStatus('not_found');
+      }
+    });
+    return unsubscribe;
+  }, [sessionId]);
 
   // Phase state machine: waiting → playing → feedback → playing … → finished
   const [phase, setPhase] = useState('waiting');
@@ -130,7 +151,7 @@ const TrueOrFalse = () => {
     setLastResult({ isCorrect, points: finalScore, newStreak, timedOut: false });
     setPhase('feedback');
 
-    if (sessionId && sessionId !== 'demo') {
+    if (!isDemo(sessionId)) {
       updatePlayerScore(sessionId, nickname, newTotal).catch((err) =>
         console.warn('Score update skipped:', err.message)
       );
@@ -158,7 +179,37 @@ const TrueOrFalse = () => {
   const barColor =
     timeRemaining <= 2 ? 'bg-red-500' : timeRemaining <= 3 ? 'bg-yellow-400' : 'bg-green-500';
 
-  // ── WAITING SCREEN ───────────────────────────────────────────────
+  // ── Session waiting room (live) ────────────────────────────────
+  if (sessionStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Waiting for teacher...</h2>
+          <p className="text-slate-400">The game will start soon</p>
+          <div className="flex items-center gap-2 justify-center mt-4 text-green-400">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm">Connected as {nickname}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'not_found') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Session not found</h2>
+          <p className="text-slate-400 mb-4">This game session doesn't exist or has ended.</p>
+          <a href="/join" className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl">Back to Join</a>
+        </div>
+      </div>
+    );
+  }
+
+  // ── WAITING SCREEN (countdown) ────────────────────────────────
   if (phase === 'waiting') {
     return (
       <div className="min-h-screen bg-[#0f172a] flex flex-col">

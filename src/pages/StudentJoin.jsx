@@ -4,6 +4,14 @@ import { motion } from 'framer-motion';
 import PinEntry from '../components/shared/PinEntry';
 import { joinSession } from '../firebase/sessions';
 
+const friendlyError = (message) => {
+  if (!message) return 'Something went wrong. Please try again.';
+  if (message.includes('PIN not found')) return "That PIN doesn't exist. Double-check with your teacher.";
+  if (message.includes('already ended')) return 'This game has ended. Ask your teacher to start a new one.';
+  if (message.includes('not configured')) return 'Connection error. Please try again.';
+  return message;
+};
+
 const StudentJoin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -18,13 +26,7 @@ const StudentJoin = () => {
       const route = `/game/${gameType.replace(/_/g, '-')}/${sessionId}`;
       navigate(route);
     } catch (err) {
-      // Demo fallback: any valid 6-digit PIN drops into Multiple Choice demo
-      if (pin.length === 6) {
-        navigate('/game/multiple-choice/demo');
-      } else {
-        setError(err.message || 'Invalid PIN. Please try again.');
-      }
-    } finally {
+      setError(friendlyError(err.message));
       setLoading(false);
     }
   };
