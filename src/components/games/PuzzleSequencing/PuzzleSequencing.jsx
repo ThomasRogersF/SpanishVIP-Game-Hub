@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { isDemo as isDemoMode } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import {
   DndContext,
   closestCenter,
@@ -154,6 +155,7 @@ const PuzzleSequencing = () => {
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
+  const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
   useEffect(() => {
     if (isDemoMode(sessionId)) {
@@ -173,6 +175,13 @@ const PuzzleSequencing = () => {
 
   // Phase: waiting | playing | feedback | finished
   const [phase, setPhase] = useState('waiting');
+
+  // Synced countdown → start playing
+  useEffect(() => {
+    if (isReady && phase === 'waiting') {
+      setPhase('playing');
+    }
+  }, [isReady, phase]);
   const [puzzleIndex, setPuzzleIndex] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [lastResult, setLastResult] = useState(null); // { score, correctCount, isFullyCorrect }
@@ -331,6 +340,35 @@ const PuzzleSequencing = () => {
           <p className="text-slate-400 mb-4">This game session doesn't exist or has ended.</p>
           <a href="/join" className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl">Back to Join</a>
         </div>
+      </div>
+    );
+  }
+
+  // ── Countdown screen (synced) ────────────────────────────────
+  if (sessionStatus === 'active' && !isReady && syncedCountdown !== null) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-slate-800 rounded-2xl p-10 text-center max-w-md w-full shadow-2xl border border-slate-700"
+        >
+          <div className="text-7xl mb-4">🧩</div>
+          <h1 className="text-3xl font-bold text-white mb-2">Puzzle Sequencing</h1>
+          <p className="text-slate-400 mb-6">Drag tiles into the correct order</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={syncedCountdown}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              className="text-7xl font-black text-yellow-400 mb-6"
+            >
+              {syncedCountdown === 0 ? '🚀' : syncedCountdown}
+            </motion.div>
+          </AnimatePresence>
+          <p className="text-slate-500 text-sm">All players are starting together</p>
+        </motion.div>
       </div>
     );
   }

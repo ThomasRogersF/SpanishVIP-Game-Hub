@@ -8,6 +8,7 @@ import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoMode } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -178,6 +179,7 @@ const TypeAnswer = () => {
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
+  const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
   useEffect(() => {
     if (isDemoMode(sessionId)) {
@@ -197,7 +199,6 @@ const TypeAnswer = () => {
 
   // Phase: waiting | playing | feedback | finished
   const [phase, setPhase] = useState('waiting');
-  const [countdown, setCountdown] = useState(3);
 
   const [qIndex, setQIndex] = useState(0);
   const [inputValue, setInputValue] = useState('');
@@ -244,18 +245,14 @@ const TypeAnswer = () => {
     timeFraction > 0.5 ? '#22c55e' : timeFraction > 0.27 ? '#fbbf24' : '#ef4444';
 
   // ---------------------------------------------------------------------------
-  // Countdown before first question
+  // Synced countdown → start playing
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (phase !== 'waiting') return;
-    if (countdown <= 0) {
+    if (isReady && phase === 'waiting') {
       setPhase('playing');
-      return;
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, countdown]);
+  }, [isReady, phase]);
 
   // ---------------------------------------------------------------------------
   // Start timer when entering playing phase / changing question
@@ -517,7 +514,38 @@ const TypeAnswer = () => {
   // Waiting / countdown screen
   // ---------------------------------------------------------------------------
 
-  if (phase === 'waiting') {
+  // Synced countdown screen
+  if (sessionStatus === 'active' && !isReady && syncedCountdown !== null) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-slate-800 rounded-2xl p-10 text-center max-w-md w-full shadow-2xl border border-slate-700"
+        >
+          <div className="text-7xl mb-4">⌨️</div>
+          <h1 className="text-3xl font-bold text-white mb-2">Type Answer</h1>
+          <p className="text-slate-400 mb-6">Type the exact Spanish answer from memory</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={syncedCountdown}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ duration: 0.35 }}
+              className="text-7xl font-black text-brand-yellow mb-6"
+            >
+              {syncedCountdown === 0 ? '🚀' : syncedCountdown}
+            </motion.div>
+          </AnimatePresence>
+          <p className="text-slate-500 text-sm">All players are starting together</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Pre-countdown waiting screen
+  if (phase === 'waiting' && !isReady) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
         <motion.div
@@ -534,18 +562,6 @@ const TypeAnswer = () => {
             <p>• Speed bonus for fast correct answers</p>
             <p>• 💡 Hint costs 200 pts</p>
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={countdown}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 0.35 }}
-              className="text-7xl font-black text-brand-yellow mb-6"
-            >
-              {countdown > 0 ? countdown : '🚀'}
-            </motion.div>
-          </AnimatePresence>
           <p className="text-slate-500 text-sm">Starting…</p>
         </motion.div>
       </div>

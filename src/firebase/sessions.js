@@ -102,12 +102,27 @@ export const getSession = async (sessionId) => {
 // Update session status
 export const updateSessionStatus = async (sessionId, status) => {
   if (!db) return;
-  await updateDoc(doc(db, "sessions", sessionId), {
+
+  const updateData = {
     status,
     updatedAt: serverTimestamp()
-  });
+  };
+
+  // When starting the game, add a synchronized countdown start time
+  if (status === "active") {
+    updateData.startedAt = serverTimestamp();
+    updateData.countdownSeconds = 5;
+  }
+
+  await updateDoc(doc(db, "sessions", sessionId), updateData);
+
   if (rtdb) {
-    await update(ref(rtdb, `sessions/${sessionId}`), { status });
+    const rtdbUpdate = { status };
+    if (status === "active") {
+      rtdbUpdate.startedAt = Date.now();
+      rtdbUpdate.countdownSeconds = 5;
+    }
+    await update(ref(rtdb, `sessions/${sessionId}`), rtdbUpdate);
   }
 };
 

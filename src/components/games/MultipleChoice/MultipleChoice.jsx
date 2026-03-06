@@ -8,6 +8,7 @@ import { calculateScore } from '../../../utils/scoreCalculator';
 import { isDemo } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 
 const SAMPLE_QUESTIONS = [
   {
@@ -50,6 +51,7 @@ const MultipleChoice = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
   const [sessionStatus, setSessionStatus] = useState('checking');
+  const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
   // Subscribe to session status for live mode waiting room
   useEffect(() => {
@@ -166,6 +168,31 @@ const MultipleChoice = () => {
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             <span className="text-sm">Connected as {localStorage.getItem('svip_nickname') || 'Player'}</span>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Countdown screen (synced) ────────────────────────────────
+  if (sessionStatus === 'active' && !isReady && syncedCountdown !== null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-400 text-lg mb-4">Game starting in...</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={syncedCountdown}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              className="text-9xl font-black text-yellow-400"
+            >
+              {syncedCountdown === 0 ? '🚀' : syncedCountdown}
+            </motion.div>
+          </AnimatePresence>
+          <p className="text-slate-500 text-sm mt-6">
+            All players are starting together
+          </p>
         </div>
       </div>
     );

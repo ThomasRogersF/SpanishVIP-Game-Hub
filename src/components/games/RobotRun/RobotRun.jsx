@@ -8,6 +8,7 @@ import { rtdb, db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
+import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ const RobotRun = () => {
   const isDemo = isDemoCheck(sessionId);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
+  const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
   useEffect(() => {
     if (isDemo) {
@@ -135,7 +137,6 @@ const RobotRun = () => {
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState('intro');
-  const [countdown, setCountdown] = useState(3);
   const phaseRef = useRef('intro');
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
@@ -218,7 +219,6 @@ const RobotRun = () => {
   // ── Game reset ─────────────────────────────────────────────────────────────
   const resetGame = () => {
     setPhase('intro');
-    setCountdown(3);
     setEscapeProgress(0);
     setRobotProximity(100);
     escapeProgressRef.current = 0;
@@ -276,18 +276,15 @@ const RobotRun = () => {
     return () => clearTimeout(t);
   }, [phase, currentQuestion?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Countdown 3 → 2 → 1 → 🚀 → playing ───────────────────────────────────
+  // ── Synced countdown → start playing ───────────────────────────────────
   useEffect(() => {
-    if (phase !== 'countdown') return;
-    if (countdown <= 0) {
+    if (isReady && (phase === 'intro' || phase === 'countdown')) {
       const q = getNextQuestion(0);
       setCurrentQuestion(q);
       const t = setTimeout(() => setPhase('playing'), 600);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, countdown]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isReady, phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Show "Begin Mission" button after narrative lines finish ──────────────
   useEffect(() => {
@@ -525,6 +522,36 @@ const RobotRun = () => {
     );
   }
 
+  // ── COUNTDOWN SCREEN (synced) ──────────────────────────────────────────────
+  if (sessionStatus === 'active' && !isReady && syncedCountdown !== null) {
+    return (
+      <div
+        style={{ ...SPACE_BG, minHeight: '100vh' }}
+        className="relative overflow-hidden flex items-center justify-center"
+      >
+        <StarsLayer />
+        <div className="relative z-10 text-center">
+          <p className="text-slate-400 text-lg mb-4">Game starting in...</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={syncedCountdown}
+              initial={{ scale: 1.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.4, opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="text-9xl font-black text-white select-none"
+            >
+              {syncedCountdown === 0 ? '🚀' : syncedCountdown}
+            </motion.div>
+          </AnimatePresence>
+          <p className="text-slate-500 text-sm mt-6">
+            All players are starting together
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // ── INTRO ──────────────────────────────────────────────────────────────────
   if (phase === 'intro') {
     return (
@@ -584,7 +611,7 @@ const RobotRun = () => {
     );
   }
 
-  // ── COUNTDOWN ──────────────────────────────────────────────────────────────
+  // ── COUNTDOWN (demo mode — from "Begin Mission" button) ───────────────────
   if (phase === 'countdown') {
     return (
       <div
@@ -592,18 +619,20 @@ const RobotRun = () => {
         className="relative overflow-hidden flex items-center justify-center"
       >
         <StarsLayer />
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={countdown}
-            initial={{ scale: 1.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.4, opacity: 0 }}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="relative z-10 text-9xl font-black text-white select-none"
-          >
-            {countdown === 0 ? '🚀' : countdown}
-          </motion.div>
-        </AnimatePresence>
+        <div className="relative z-10 text-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={syncedCountdown}
+              initial={{ scale: 1.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.4, opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="text-9xl font-black text-white select-none"
+            >
+              {syncedCountdown === 0 ? '🚀' : (syncedCountdown ?? '...')}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     );
   }
