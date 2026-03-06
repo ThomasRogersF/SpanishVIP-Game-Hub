@@ -1,6 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isDemo as isDemoMode } from '../../../utils/sessionMode';
+import { db } from '../../../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 import {
   DndContext,
   closestCenter,
@@ -150,6 +153,23 @@ const PuzzleSequencing = () => {
   const { sessionId = 'demo' } = useParams();
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
+  const [sessionStatus, setSessionStatus] = useState('checking');
+
+  useEffect(() => {
+    if (isDemoMode(sessionId)) {
+      setSessionStatus('active');
+      return;
+    }
+    if (!db) { setSessionStatus('active'); return; }
+    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snap) => {
+      if (snap.exists()) {
+        setSessionStatus(snap.data().status);
+      } else {
+        setSessionStatus('not_found');
+      }
+    });
+    return unsubscribe;
+  }, [sessionId]);
 
   // Phase: waiting | playing | feedback | finished
   const [phase, setPhase] = useState('waiting');
@@ -242,7 +262,7 @@ const PuzzleSequencing = () => {
         setPhase('playing');
       } else {
         // Game over
-        if (sessionId !== 'demo') {
+        if (!isDemoMode(sessionId)) {
           try {
             await updatePlayerScore(sessionId, nickname, totalScoreRef.current);
           } catch (_) {}
@@ -284,6 +304,36 @@ const PuzzleSequencing = () => {
   // ---------------------------------------------------------------------------
   // Render helpers
   // ---------------------------------------------------------------------------
+
+  // ── Session waiting room (live) ────────────────────────────────
+  if (sessionStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Waiting for teacher...</h2>
+          <p className="text-slate-400">The game will start soon</p>
+          <div className="flex items-center gap-2 justify-center mt-4 text-green-400">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm">Connected as {nickname}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'not_found') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Session not found</h2>
+          <p className="text-slate-400 mb-4">This game session doesn't exist or has ended.</p>
+          <a href="/join" className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl">Back to Join</a>
+        </div>
+      </div>
+    );
+  }
 
   if (phase === 'waiting') {
     return (

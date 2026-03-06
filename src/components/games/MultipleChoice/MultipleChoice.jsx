@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Timer from '../../shared/Timer';
 import Leaderboard from '../../shared/Leaderboard';
 import { useTimer } from '../../../hooks/useTimer';
 import { calculateScore } from '../../../utils/scoreCalculator';
+import { isDemo } from '../../../utils/sessionMode';
+import { db } from '../../../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const SAMPLE_QUESTIONS = [
   {
@@ -45,6 +48,29 @@ const TIME_LIMIT = 20;
 
 const MultipleChoice = () => {
   const navigate = useNavigate();
+  const { sessionId } = useParams();
+  const [sessionStatus, setSessionStatus] = useState('checking');
+
+  // Subscribe to session status for live mode waiting room
+  useEffect(() => {
+    if (isDemo(sessionId)) {
+      setSessionStatus('active');
+      return;
+    }
+    if (!db) {
+      setSessionStatus('active');
+      return;
+    }
+    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snap) => {
+      if (snap.exists()) {
+        setSessionStatus(snap.data().status);
+      } else {
+        setSessionStatus('not_found');
+      }
+    });
+    return unsubscribe;
+  }, [sessionId]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -127,6 +153,38 @@ const MultipleChoice = () => {
     }
     return 'opacity-30 cursor-default';
   };
+
+  // ── Waiting room (live sessions) ────────────────────────────────
+  if (sessionStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Waiting for teacher...</h2>
+          <p className="text-slate-400">The game will start soon</p>
+          <div className="flex items-center gap-2 justify-center mt-4 text-green-400">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm">Connected as {localStorage.getItem('svip_nickname') || 'Player'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'not_found') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Session not found</h2>
+          <p className="text-slate-400 mb-4">This game session doesn't exist or has ended.</p>
+          <a href="/join" className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl">
+            Back to Join
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   // ── Finished screen ──────────────────────────────────────────────
   if (isFinished) {
@@ -250,7 +308,7 @@ const MultipleChoice = () => {
 
       {/* Right: Leaderboard (desktop) */}
       <aside className="hidden lg:block w-64 xl:w-72 p-4 bg-slate-950 border-l border-slate-800 pt-6">
-        <Leaderboard sessionId="demo" />
+        <Leaderboard sessionId={sessionId || 'demo'} />
       </aside>
 
       {/* Feedback overlay */}

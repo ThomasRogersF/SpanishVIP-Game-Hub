@@ -5,6 +5,9 @@ import { useTimer } from '../../../hooks/useTimer';
 import { checkAnswer, normalizeString } from '../../../utils/stringMatcher';
 import { updatePlayerScore } from '../../../firebase/leaderboard';
 import Leaderboard from '../../shared/Leaderboard';
+import { isDemo as isDemoMode } from '../../../utils/sessionMode';
+import { db } from '../../../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -174,6 +177,23 @@ const TypeAnswer = () => {
   const { sessionId = 'demo' } = useParams();
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
+  const [sessionStatus, setSessionStatus] = useState('checking');
+
+  useEffect(() => {
+    if (isDemoMode(sessionId)) {
+      setSessionStatus('active');
+      return;
+    }
+    if (!db) { setSessionStatus('active'); return; }
+    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snap) => {
+      if (snap.exists()) {
+        setSessionStatus(snap.data().status);
+      } else {
+        setSessionStatus('not_found');
+      }
+    });
+    return unsubscribe;
+  }, [sessionId]);
 
   // Phase: waiting | playing | feedback | finished
   const [phase, setPhase] = useState('waiting');
@@ -271,7 +291,7 @@ const TypeAnswer = () => {
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (phase !== 'playing' || sessionId !== 'demo') return;
+    if (phase !== 'playing' || !isDemoMode(sessionId)) return;
 
     // Cancel any leftover timers from the previous question
     demoPendingTimers.current.forEach(clearTimeout);
@@ -371,7 +391,7 @@ const TypeAnswer = () => {
         setFeedbackKind(null);
         setPhase('playing');
       } else {
-        if (sessionId !== 'demo') {
+        if (!isDemoMode(sessionId)) {
           try {
             await updatePlayerScore(sessionId, nickname, totalScoreRef.current);
           } catch (_) {}
@@ -463,6 +483,36 @@ const TypeAnswer = () => {
     return Math.round((correct / results.length) * 100);
   }, [results]);
 
+  // ── Session waiting room (live) ────────────────────────────────
+  if (sessionStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Waiting for teacher...</h2>
+          <p className="text-slate-400">The game will start soon</p>
+          <div className="flex items-center gap-2 justify-center mt-4 text-green-400">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm">Connected as {nickname}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'not_found') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Session not found</h2>
+          <p className="text-slate-400 mb-4">This game session doesn't exist or has ended.</p>
+          <a href="/join" className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl">Back to Join</a>
+        </div>
+      </div>
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Waiting / countdown screen
   // ---------------------------------------------------------------------------
@@ -536,7 +586,7 @@ const TypeAnswer = () => {
                 <p className="text-slate-400">Hints used</p>
                 <p className="text-white font-bold text-lg">{hintCountRef.current}</p>
               </div>
-              {sessionId === 'demo' && demoHintCountRef.current > 0 && (
+              {isDemoMode(sessionId) && demoHintCountRef.current > 0 && (
                 <div className="text-center">
                   <p className="text-slate-400">Demo hints</p>
                   <p className="text-white font-bold text-lg">{demoHintCountRef.current}</p>

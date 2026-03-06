@@ -1,79 +1,131 @@
+import { db, rtdb } from "./config";
 import {
-  collection,
-  addDoc,
-  doc,
-  getDoc,
-  updateDoc,
-  query,
-  where,
-  getDocs,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from './config';
-import { generatePin } from '../utils/generatePin';
+  collection, doc, setDoc, getDoc, updateDoc, deleteDoc,
+  query, where, getDocs, serverTimestamp
+} from "firebase/firestore";
+import { ref, set, get, update, onValue, off } from "firebase/database";
+import { generatePin } from "../utils/generatePin";
 
-/**
- * Create a new game session.
- * @param {string} gameType - e.g. 'multiple-choice'
- * @param {Array} questions - array of question objects
- * @param {string} teacherId - teacher's UID
- * @returns {{ sessionId: string, pin: string }}
- */
-export const createSession = async (gameType, questions = [], teacherId = '') => {
+// Create a new game session in Firestore
+export const createSession = async (gameType, questions = [], teacherId = "teacher") => {
+  if (!db) throw new Error("Firebase not configured");
+
   const pin = generatePin();
-  const docRef = await addDoc(collection(db, 'sessions'), {
+  const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+  const sessionData = {
+    pin,
     gameType,
     questions,
     teacherId,
-    pin,
-    status: 'waiting', // waiting | active | finished
+    status: "waiting", // waiting | active | finished
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
     players: {},
-  });
-  return { sessionId: docRef.id, pin };
-};
+    currentQuestion: 0,
+    settings: {
+      showLeaderboard: true,
+      allowLateJoin: true,
+    }
+  };
 
-/**
- * Join an existing session by PIN.
- * @param {string} pin - 6-digit PIN
- * @param {string} nickname - player's display name
- * @returns {{ sessionId: string, gameType: string }}
- */
-export const joinSession = async (pin, nickname) => {
-  const q = query(collection(db, 'sessions'), where('pin', '==', pin), where('status', '!=', 'finished'));
-  const snapshot = await getDocs(q);
+  await setDoc(doc(db, "sessions", sessionId), sessionData);
 
-  if (snapshot.empty) {
-    throw new Error('No active session found for that PIN.');
+  // Also write to Realtime DB for fast lookups
+  if (rtdb) {
+    await set(ref(rtdb, `sessions/${sessionId}`), {
+      pin,
+      gameType,
+      status: "waiting",
+      createdAt: Date.now(),
+    });
   }
 
-  const sessionDoc = snapshot.docs[0];
-  const sessionId = sessionDoc.id;
-  const data = sessionDoc.data();
+  return { sessionId, pin };
+};
 
-  await updateDoc(doc(db, 'sessions', sessionId), {
-    [`players.${nickname}`]: { nickname, score: 0, joinedAt: serverTimestamp() },
+// Join a session by PIN — returns sessionId if found
+export const joinSession = async (pin, nickname) => {
+  if (!db) throw new Error("Firebase not configured");
+
+  // Query Firestore for session with this PIN that is waiting or active
+  const q = query(
+    collection(db, "sessions"),
+    where("pin", "==", pin.toString().trim())
+  );
+
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    throw new Error("PIN not found. Check the PIN and try again.");
+  }
+
+  // Find a session that isn't finished
+  const validSession = snap.docs.find(d => d.data().status !== "finished");
+
+  if (!validSession) {
+    throw new Error("This game has already ended. Ask your teacher for a new PIN.");
+  }
+
+  const sessionId = validSession.id;
+  const sessionData = validSession.data();
+
+  // Add player to session
+  const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+
+  await updateDoc(doc(db, "sessions", sessionId), {
+    [`players.${nickname}`]: {
+      nickname,
+      playerId,
+      joinedAt: serverTimestamp(),
+      score: 0,
+      status: "joined"
+    }
   });
 
-  return { sessionId, gameType: data.gameType };
+  // Store player info in localStorage
+  localStorage.setItem("svip_nickname", nickname);
+  localStorage.setItem("svip_session_id", sessionId);
+  localStorage.setItem("svip_player_id", playerId);
+  localStorage.setItem("svip_game_type", sessionData.gameType);
+
+  return { sessionId, gameType: sessionData.gameType, pin };
 };
 
-/**
- * Update session status.
- * @param {string} sessionId
- * @param {'waiting'|'active'|'finished'} status
- */
-export const updateSessionStatus = async (sessionId, status) => {
-  await updateDoc(doc(db, 'sessions', sessionId), { status });
-};
-
-/**
- * Get a session document by ID.
- * @param {string} sessionId
- * @returns {Object} session data
- */
+// Get a session by ID
 export const getSession = async (sessionId) => {
-  const snap = await getDoc(doc(db, 'sessions', sessionId));
-  if (!snap.exists()) throw new Error('Session not found.');
-  return { id: snap.id, ...snap.data() };
+  if (!db) return null;
+  const snap = await getDoc(doc(db, "sessions", sessionId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+};
+
+// Update session status
+export const updateSessionStatus = async (sessionId, status) => {
+  if (!db) return;
+  await updateDoc(doc(db, "sessions", sessionId), {
+    status,
+    updatedAt: serverTimestamp()
+  });
+  if (rtdb) {
+    await update(ref(rtdb, `sessions/${sessionId}`), { status });
+  }
+};
+
+// Subscribe to session changes (real-time)
+export const subscribeToSession = (sessionId, callback) => {
+  if (!rtdb) return () => {};
+  const sessionRef = ref(rtdb, `sessions/${sessionId}`);
+  onValue(sessionRef, (snap) => {
+    callback(snap.val());
+  });
+  return () => off(sessionRef);
+};
+
+// Delete a session (cleanup)
+export const deleteSession = async (sessionId) => {
+  if (!db) return;
+  await deleteDoc(doc(db, "sessions", sessionId));
+  if (rtdb) {
+    await set(ref(rtdb, `sessions/${sessionId}`), null);
+  }
 };

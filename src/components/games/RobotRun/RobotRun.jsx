@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ref, onValue, off, runTransaction } from 'firebase/database';
 import { useTimer } from '../../../hooks/useTimer';
 import { updatePlayerScore } from '../../../firebase/leaderboard';
-import { rtdb } from '../../../firebase/config';
+import { rtdb, db } from '../../../firebase/config';
+import { doc, onSnapshot } from 'firebase/firestore';
 import Leaderboard from '../../shared/Leaderboard';
+import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 
@@ -110,8 +112,26 @@ const CAUGHT_BG = { background: 'radial-gradient(ellipse at center, #3b0000 0%, 
 const RobotRun = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
-  const isDemo = !sessionId || sessionId === 'demo';
+  const isDemo = isDemoCheck(sessionId);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
+  const [sessionStatus, setSessionStatus] = useState('checking');
+
+  useEffect(() => {
+    if (isDemo) {
+      setSessionStatus('active');
+      return;
+    }
+    if (!db) { setSessionStatus('active'); return; }
+    const unsubscribe = onSnapshot(doc(db, 'sessions', sessionId), (snap) => {
+      if (snap.exists()) {
+        const status = snap.data().status;
+        setSessionStatus(status);
+      } else {
+        setSessionStatus('not_found');
+      }
+    });
+    return unsubscribe;
+  }, [sessionId, isDemo]);
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState('intro');
@@ -474,6 +494,36 @@ const RobotRun = () => {
         }}
       />
     ));
+
+  // ── Session waiting room (live) ────────────────────────────────
+  if (sessionStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Waiting for teacher...</h2>
+          <p className="text-slate-400">The game will start soon</p>
+          <div className="flex items-center gap-2 justify-center mt-4 text-green-400">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-sm">Connected as {nickname}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionStatus === 'not_found') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Session not found</h2>
+          <p className="text-slate-400 mb-4">This game session doesn't exist or has ended.</p>
+          <a href="/join" className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl">Back to Join</a>
+        </div>
+      </div>
+    );
+  }
 
   // ── INTRO ──────────────────────────────────────────────────────────────────
   if (phase === 'intro') {
