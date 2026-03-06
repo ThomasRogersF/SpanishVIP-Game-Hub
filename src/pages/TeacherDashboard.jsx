@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createSession } from '../firebase/sessions';
 import { generatePin } from '../utils/generatePin';
+import { getQuestionSets } from '../firebase/questionSets';
 
 const GAME_OPTIONS = [
   { value: 'multiple-choice', label: '🎯 Multiple Choice Quiz' },
@@ -19,6 +20,20 @@ const TeacherDashboard = () => {
   const [currentPin, setCurrentPin] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [questionLibrary, setQuestionLibrary] = useState([]);
+  const [selectedQuestionSet, setSelectedQuestionSet] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const sets = await getQuestionSets(selectedGame);
+        setQuestionLibrary(sets);
+      } catch {
+        setQuestionLibrary([]);
+      }
+    })();
+    setSelectedQuestionSet('');
+  }, [selectedGame]);
 
   const handleCreateSession = async () => {
     setCreating(true);
@@ -51,7 +66,12 @@ const TeacherDashboard = () => {
         <Link to="/">
           <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
         </Link>
-        <span className="text-slate-400 font-semibold text-sm">Teacher Dashboard</span>
+        <div className="flex items-center gap-4">
+          <Link to="/editor" className="bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors border border-slate-700">
+            Question Editor
+          </Link>
+          <span className="text-slate-400 font-semibold text-sm">Teacher Dashboard</span>
+        </div>
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -76,6 +96,24 @@ const TeacherDashboard = () => {
               ))}
             </select>
           </div>
+
+          {questionLibrary.length > 0 && (
+            <div className="mb-5">
+              <label className="block text-slate-300 text-sm font-semibold mb-2">Load from Library</label>
+              <select
+                value={selectedQuestionSet}
+                onChange={(e) => setSelectedQuestionSet(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-base"
+              >
+                <option value="">— Select a question set —</option>
+                {questionLibrary.map((qs) => (
+                  <option key={qs.id} value={qs.id}>
+                    {qs.title || 'Untitled'} ({qs.questionCount || qs.questions?.length || 0} questions)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <button
             onClick={handleCreateSession}
