@@ -1,78 +1,74 @@
-# 🇪🇸 SpanishVIP Interactive Game Hub
+SpanishVIP Interactive Game Hub - Project Plan
+Executive Summary
+A web-based gaming platform for SpanishVIP that consolidates multiple interactive learning games into a single hub. Teachers can select from various game modes to engage students during live remote classes, with full customization for Spanish vocabulary, grammar, and cultural content.
 
-A Kahoot-style interactive learning platform built for SpanishVIP corporate Spanish training classes. 7 fully playable games, real-time multiplayer via Firebase, hosted on Vercel.
+Architecture Overview
+Tech Stack
 
-## 🎮 Games Included
-| Game | Type | Description |
-|------|------|-------------|
-| 🎯 Multiple Choice | Knowledge | 4 options, speed + accuracy scoring |
-| ✅ True or False | Knowledge | Rapid-fire, streak multipliers |
-| ☁️ Word Cloud | Open-ended | Free-form answers visualized |
-| 🧩 Puzzle Sequencing | Ordering | Drag and drop to arrange |
-| ⌨️ Type Answer | Recall | Type the exact answer |
-| 📊 Opinion Poll | Engagement | Live results with charts |
-| 🤖 Robot Run | Narrative | Escape the robot escape game |
+Frontend: React (interactive UI, real-time updates)
+Hosting: Vercel (free tier, optimized for React)
+Backend/Database: Firebase (Firestore for data, Realtime Database for live scores)
+Authentication: Firebase Auth (optional, for teacher accounts)
+Styling: Tailwind CSS
 
-## 🚀 Quick Start (Demo Mode — no Firebase needed)
-```
-npm install
-npm run dev
-# Visit http://localhost:5173
-# Click any "Play Demo" button to play instantly
-```
+System Flow
+Teacher Dashboard → Select Game Type → Load Game Instance → Students Join (via PIN) → Real-time Score Tracking → Results & Leaderboard
 
-## 🔥 Live Multiplayer Setup
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Firestore Database + Realtime Database
-3. Register a Web App and copy the config
-4. `cp .env.example .env`
-5. Fill in your Firebase values in `.env`
-6. `npm run dev`
+Game Hub Dashboard
+Central menu with grid/list of all available games, session management, customization options, PIN generation for student access, and basic analytics.
 
-## 🌐 Deploy to Vercel
-1. Push this repo to GitHub
-2. Go to https://vercel.com → Import Project
-3. Select your GitHub repo
-4. Add all `VITE_FIREBASE_*` variables in Vercel → Settings → Environment Variables
-5. Click Deploy
-6. Every future git push auto-deploys
+Games to Build (7 Core Games)
+1. Multiple Choice Quiz — Students select from 4 options; points for speed + accuracy. Customizable questions, timed responses (5-30 sec), live leaderboard. Perfect for vocab and grammar.
+2. True or False — Rapid-fire statements; highest streak wins. 3-5 sec per question, combo multiplier for streaks, visual feedback. Good for quick comprehension checks.
+3. Word Cloud Poll — Students type short answers (20 chars max); responses displayed as visual word cloud. Teacher marks correct/incorrect. Great for open-ended discussions and cultural questions.
+4. Puzzle Sequencing — Drag-and-drop to arrange items in order (timeline, alphabetical, logical). 3-6 items, points for accuracy + speed. Use cases: verb conjugation order, alphabet sequences, language timeline.
+5. Type Answer — Students type exact answer; auto-graded with tolerance for accents/capitalization. Multiple valid answers accepted, partial credit option, optional word bank. Perfect for spelling and conjugation drills.
+6. Opinion Poll — Multiple choice but no "right" answer; shows live results as pie chart. Discussion-focused for preferences and cultural questions.
+7. Robot Run (Narrative Escape) — Team-based collaborative game; students escape a space station from an angry robot by answering questions. Progress bar, difficulty escalates, animated graphics. High-energy class finisher for team building.
 
-## 👩‍🏫 How to Run a Live Class Game
-**Teacher:**
-1. Go to `/teacher`
-2. Select a game type
-3. Click "Generate PIN" — share the 6-digit PIN with students
-4. Click "Start Game"
+Key Features
+Student Experience: PIN/link join → nickname → mobile-friendly gameplay → real-time feedback → live leaderboard → optional sound effects
+Teacher Dashboard:
 
-**Students:**
-1. Go to `/join` (or the Vercel URL)
-2. Enter the PIN + a nickname
-3. Play!
+Pre-game: Select game type, add questions/use templates, set difficulty/timers, team vs. individual mode
+During: Monitor live responses, pause/resume, skip questions, see answer breakdowns
+Post-game: Full leaderboard, download results, replay option, save for review
 
-**Demo (no students needed):**
-- Go to `/` → click any "Play Demo →" button
+Content Management: Reusable question bank, pre-made Spanish templates (greetings, numbers, foods, etc.), custom branding, text/image/audio question types, category tagging
 
-## 🛠 Tech Stack
-- React 18 + Vite
-- Tailwind CSS
-- Firebase (Firestore + Realtime Database)
-- Framer Motion (animations)
-- Recharts (charts)
-- @dnd-kit (drag and drop)
-- react-wordcloud (word cloud)
-- Vercel (hosting)
+Database Structure (Firebase)
+Collections: users (teacher accounts), games (templates), sessions (instances), questions (bank), responses (real-time answers), leaderboards (scoring)
+Real-time Features: Live score updates, rank changes, teacher sees student answers instantly, synchronized timers across devices
 
-## 📁 Project Structure
-```
-src/
-├── components/
-│   ├── games/          ← 7 game components
-│   └── shared/         ← Leaderboard, Timer, PinEntry, GameWrapper
-├── pages/              ← Hub, TeacherDashboard, StudentJoin, GameResults
-├── firebase/           ← config, sessions, leaderboard, healthCheck
-├── hooks/              ← useTimer, useLeaderboard, useSession
-└── utils/              ← generatePin, scoreCalculator, stringMatcher
-```
+MVP Timeline
+Phase 1 (Week 1): Vercel + Firebase setup, dashboard/hub interface, student join flow (PIN), basic leaderboard
+Phase 2 (Weeks 2-3): Multiple Choice, True/False, Word Cloud, Puzzle Sequencing
+Phase 3 (Week 4): Type Answer, Opinion Poll, Robot Run
+Phase 4 (Week 5): Teacher customization panel, question templates, analytics, mobile optimization, sound effects
 
-## 📝 License
-Built for internal use by SpanishVIP.
+Deployment
+Vercel: Free tier with SSL, CDN, serverless functions, auto-deploy on GitHub push, optional custom domain
+Firebase: Firestore + Realtime DB, free tier with 1GB storage, 100 concurrent connections, auth + storage included
+
+Security
+
+Rate limiting on responses (prevent spam)
+Session expiration (auto-close after X minutes)
+Teacher PIN protection
+No persistent student data (deleted post-session)
+HTTPS/SSL encryption
+
+
+Future Enhancements
+Async mode, audio/video questions, AI speech recognition for pronunciation, homework mode, student profiles with progress tracking, tournament brackets, student roster integration, LMS connections (Canvas/Blackboard), advanced analytics
+
+Success Metrics
+Games load in <2 seconds, leaderboard updates in <500ms, supports 30+ concurrent students, 95% uptime
+
+Next Steps
+
+Confirm which games to prioritize
+Decide branding/customization needs
+Create sample Spanish question sets
+Set up Vercel + Firebase projects
+Begin Phase 1 development
