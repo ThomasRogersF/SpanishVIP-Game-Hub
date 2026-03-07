@@ -147,7 +147,7 @@ const Hub = () => {
           to={teacher ? "/teacher" : "/teacher/login"}
           className="text-slate-300 border border-slate-600 text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
         >
-          Teacher Dashboard
+          Login
         </Link>
       </nav>
 
@@ -217,7 +217,7 @@ const Hub = () => {
       {firebaseStatus === "checking" && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-sm w-fit mx-auto my-4">
           <div className="w-2 h-2 rounded-full bg-slate-400 animate-pulse" />
-          Checking multiplayer connection...
+          Connecting...
         </div>
       )}
 
@@ -228,7 +228,7 @@ const Hub = () => {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-950 border border-green-700 text-green-300 text-sm w-fit mx-auto my-4"
         >
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          🟢 Live multiplayer ready — Firebase connected
+          🟢 Multiplayer ready
         </motion.div>
       )}
 
@@ -239,9 +239,39 @@ const Hub = () => {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-950 border border-yellow-700 text-yellow-300 text-sm w-fit mx-auto my-4"
         >
           <div className="w-2 h-2 rounded-full bg-yellow-400" />
-          🟡 Demo mode — Add Firebase credentials to .env to enable live multiplayer
+          🟡 Not connected — Local only
         </motion.div>
       )}
+
+      {/* Join with PIN button */}
+      <div className="flex justify-center my-8">
+        <motion.a
+          href="/join"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.97 }}
+          className="relative inline-flex items-center gap-3 px-8 py-4 rounded-full text-white font-bold text-lg overflow-hidden shadow-2xl"
+          style={{
+            background: "linear-gradient(135deg, #DC2626, #9333EA, #2563EB, #DC2626)",
+            backgroundSize: "300% 300%",
+            animation: "gradientShift 4s ease infinite",
+          }}
+        >
+          {/* Shimmer overlay */}
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.4) 50%, transparent 60%)",
+              animation: "shimmer 3s ease infinite",
+            }}
+          />
+          <span className="text-2xl">🎮</span>
+          <span className="relative z-10">Join a Game with PIN</span>
+          <span className="relative z-10 text-xl">→</span>
+        </motion.a>
+      </div>
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 py-10 flex-1 w-full">
