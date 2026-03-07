@@ -9,6 +9,7 @@ import { isDemo } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ const CategoryBadge = ({ category }) => (
 const WordCloudGame = () => {
   const navigate = useNavigate();
   const { sessionId = 'demo' } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, SAMPLE_PROMPTS);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
   const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
@@ -149,7 +151,7 @@ const WordCloudGame = () => {
   useEffect(() => {
     advanceRef.current = () => {
       const next = currentPromptIndex + 1;
-      if (next >= SAMPLE_PROMPTS.length) {
+      if (next >= loadedQuestions.length) {
         setPhase('finished');
       } else {
         setCurrentPromptIndex(next);
@@ -180,7 +182,7 @@ const WordCloudGame = () => {
   // ── Start timer + focus input on each inputting phase ───────────
   useEffect(() => {
     if (phase !== 'inputting') return;
-    const timeLimit = SAMPLE_PROMPTS[currentPromptIndex].timeLimit;
+    const timeLimit = loadedQuestions[currentPromptIndex]?.timeLimit ?? 30;
     setTimerTransition('none');
     reset(timeLimit);
     const t = setTimeout(() => {
@@ -226,7 +228,7 @@ const WordCloudGame = () => {
   }, [phase, currentPromptIndex]);
 
   // ── Computed values ──────────────────────────────────────────────
-  const currentPrompt = SAMPLE_PROMPTS[currentPromptIndex];
+  const currentPrompt = loadedQuestions[currentPromptIndex];
   const currentTimeLimit = currentPrompt.timeLimit;
   const barPct = currentTimeLimit > 0 ? (timeRemaining / currentTimeLimit) * 100 : 0;
   const barColor =
@@ -258,7 +260,7 @@ const WordCloudGame = () => {
   // Per-word color: green=correct, gray=wrong (quiz), hashed palette (poll)
   const getWordColor = useCallback(
     (word) => {
-      const prompt = SAMPLE_PROMPTS[currentPromptIndex];
+      const prompt = loadedQuestions[currentPromptIndex];
       if (prompt.hasCorrectAnswer && prompt.acceptedAnswers) {
         const isCorrect = prompt.acceptedAnswers.some(
           (a) => normalizeString(a) === normalizeString(word.text)
@@ -350,6 +352,18 @@ const WordCloudGame = () => {
     setPhase('waiting');
   };
 
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemo(sessionId)) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
+
   // ── Session waiting room (live) ────────────────────────────────
   if (sessionStatus === 'waiting') {
     return (
@@ -426,7 +440,7 @@ const WordCloudGame = () => {
           <div className="text-center select-none">
             <p className="text-slate-400 text-xl font-semibold mb-8">Get Ready!</p>
             <p className="text-slate-500 text-sm mt-10">
-              {SAMPLE_PROMPTS.length} prompts · type your answers
+              {loadedQuestions.length} prompts · type your answers
             </p>
           </div>
         </div>
@@ -436,16 +450,16 @@ const WordCloudGame = () => {
 
   // ── FINISHED SCREEN ──────────────────────────────────────────────
   if (phase === 'finished') {
-    const totalResponsesAcrossGame = SAMPLE_PROMPTS.reduce(
+    const totalResponsesAcrossGame = loadedQuestions.reduce(
       (sum, _, i) => sum + Object.keys(responses[i] || {}).length,
       0
     );
-    const maxPossible = SAMPLE_PROMPTS.length * (DEMO_RESPONSES[0].length + 1);
+    const maxPossible = loadedQuestions.length * (DEMO_RESPONSES[0].length + 1);
     const participationPct = Math.min(
       Math.round((totalResponsesAcrossGame / maxPossible) * 100),
       97
     );
-    const promptsAnswered = SAMPLE_PROMPTS.filter((_, i) => responses[i]?.[nickname]).length;
+    const promptsAnswered = loadedQuestions.filter((_, i) => responses[i]?.[nickname]).length;
 
     return (
       <motion.div
@@ -475,7 +489,7 @@ const WordCloudGame = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-slate-900 rounded-xl p-4">
                 <p className="text-2xl font-black text-white">
-                  {promptsAnswered}/{SAMPLE_PROMPTS.length}
+                  {promptsAnswered}/{loadedQuestions.length}
                 </p>
                 <p className="text-slate-400 text-xs mt-1">prompts answered</p>
               </div>
@@ -491,7 +505,7 @@ const WordCloudGame = () => {
             <h2 className="text-slate-400 text-sm font-bold uppercase tracking-widest">
               Prompts Recap
             </h2>
-            {SAMPLE_PROMPTS.map((prompt, i) => {
+            {loadedQuestions.map((prompt, i) => {
               const top = getTopAnswers(i);
               return (
                 <motion.div
@@ -558,7 +572,7 @@ const WordCloudGame = () => {
 
   // ── REVEALING SCREEN ─────────────────────────────────────────────
   if (phase === 'revealing') {
-    const isLastPrompt = currentPromptIndex >= SAMPLE_PROMPTS.length - 1;
+    const isLastPrompt = currentPromptIndex >= loadedQuestions.length - 1;
 
     return (
       <div className="min-h-screen bg-[#0f172a] flex flex-col">
@@ -567,7 +581,7 @@ const WordCloudGame = () => {
           <div className="flex items-center gap-3">
             <CategoryBadge category={currentPrompt.category} />
             <span className="text-slate-400 text-sm font-medium">
-              Prompt {currentPromptIndex + 1} of {SAMPLE_PROMPTS.length}
+              Prompt {currentPromptIndex + 1} of {loadedQuestions.length}
             </span>
           </div>
         </nav>
@@ -673,10 +687,10 @@ const WordCloudGame = () => {
         <div className="text-center">
           <p className="text-white font-semibold text-sm leading-none mb-1.5">
             Prompt {currentPromptIndex + 1}
-            <span className="text-slate-500"> of {SAMPLE_PROMPTS.length}</span>
+            <span className="text-slate-500"> of {loadedQuestions.length}</span>
           </p>
           <div className="flex gap-1 justify-center">
-            {SAMPLE_PROMPTS.map((_, i) => (
+            {loadedQuestions.map((_, i) => (
               <div
                 key={i}
                 className={`h-1 w-4 rounded-full transition-colors duration-300 ${

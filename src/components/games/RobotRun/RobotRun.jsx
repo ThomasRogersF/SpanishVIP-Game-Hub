@@ -9,6 +9,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ const CAUGHT_BG = { background: 'radial-gradient(ellipse at center, #3b0000 0%, 
 const RobotRun = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, questionPool);
   const isDemo = isDemoCheck(sessionId);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
@@ -206,12 +208,12 @@ const RobotRun = () => {
   // ── Question selection ─────────────────────────────────────────────────────
   const getNextQuestion = (ep) => {
     const tier = currentTierFor(ep);
-    let pool = questionPool.filter((q) => q.tier === tier && !answeredIdsRef.current.has(q.id));
+    let pool = loadedQuestions.filter((q) => q.tier === tier && !answeredIdsRef.current.has(q.id));
     if (pool.length === 0) {
       // Reset answered for this tier so questions cycle
-      const tierIds = new Set(questionPool.filter((q) => q.tier === tier).map((q) => q.id));
+      const tierIds = new Set(loadedQuestions.filter((q) => q.tier === tier).map((q) => q.id));
       answeredIdsRef.current = new Set([...answeredIdsRef.current].filter((id) => !tierIds.has(id)));
-      pool = questionPool.filter((q) => q.tier === tier);
+      pool = loadedQuestions.filter((q) => q.tier === tier);
     }
     return pool[Math.floor(Math.random() * pool.length)];
   };
@@ -491,6 +493,18 @@ const RobotRun = () => {
         }}
       />
     ));
+
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemo) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Session waiting room (live) ────────────────────────────────
   if (sessionStatus === 'waiting') {

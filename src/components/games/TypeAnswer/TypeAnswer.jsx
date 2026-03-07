@@ -9,6 +9,7 @@ import { isDemo as isDemoMode } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -176,6 +177,7 @@ const WordBank = ({ letters, usedIndices, onLetterClick, onClear }) => (
 
 const TypeAnswer = () => {
   const { sessionId = 'demo' } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, SAMPLE_QUESTIONS);
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
@@ -225,7 +227,7 @@ const TypeAnswer = () => {
   const demoHintCountRef = useRef(0);   // hints used by simulated demo players
   const demoPendingTimers = useRef([]); // timeout IDs for demo simulation
 
-  const question = SAMPLE_QUESTIONS[qIndex];
+  const question = loadedQuestions[qIndex];
 
   // Keep inputValueRef in sync (for stale-closure-safe submit)
   const handleInputChange = (e) => {
@@ -378,7 +380,7 @@ const TypeAnswer = () => {
   useEffect(() => {
     if (phase !== 'feedback') return;
     const t = setTimeout(async () => {
-      if (qIndex + 1 < SAMPLE_QUESTIONS.length) {
+      if (qIndex + 1 < loadedQuestions.length) {
         setQIndex((i) => i + 1);
         setInputValue('');
         inputValueRef.current = '';
@@ -479,6 +481,18 @@ const TypeAnswer = () => {
     const correct = results.filter((r) => r.isCorrect || r.isClose).length;
     return Math.round((correct / results.length) * 100);
   }, [results]);
+
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemoMode(sessionId)) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Session waiting room (live) ────────────────────────────────
   if (sessionStatus === 'waiting') {
@@ -765,7 +779,7 @@ const TypeAnswer = () => {
         <div className="flex items-center justify-between mb-3">
           <span className="text-brand-yellow font-bold">{totalScore.toLocaleString()} pts</span>
           <span className="text-slate-400 text-sm">
-            {qIndex + 1} / {SAMPLE_QUESTIONS.length}
+            {qIndex + 1} / {loadedQuestions.length}
           </span>
         </div>
         {/* Timer bar */}

@@ -18,6 +18,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 // ── Data ─────────────────────────────────────────────────────────────
 const samplePolls = [
@@ -131,6 +132,7 @@ function stripEmoji(str) {
 const OpinionPoll = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, samplePolls);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const isDemo = isDemoCheck(sessionId);
   const [sessionStatus, setSessionStatus] = useState('checking');
@@ -224,7 +226,7 @@ const OpinionPoll = () => {
   };
 
   const { timeRemaining, start, pause, reset } = useTimer(
-    samplePolls[currentPollIndex].timeLimit,
+    loadedQuestions[currentPollIndex]?.timeLimit ?? 20,
     handleTimeUp
   );
 
@@ -240,7 +242,7 @@ const OpinionPoll = () => {
   useEffect(() => {
     if (phase !== 'voting') return;
     setTimerTransition('none');
-    reset(samplePolls[currentPollIndex].timeLimit);
+    reset(loadedQuestions[currentPollIndex]?.timeLimit ?? 20);
     const t = setTimeout(() => {
       setTimerTransition('width 0.95s linear');
       start();
@@ -312,7 +314,7 @@ const OpinionPoll = () => {
     const votesRef = ref(rtdb, `polls/${sessionId}/poll${currentPollIndex}/votes`);
     const handler = (snapshot) => {
       const data = snapshot.val() || {};
-      const counts = Array(samplePolls[currentPollIndex].options.length).fill(0);
+      const counts = Array(loadedQuestions[currentPollIndex].options.length).fill(0);
       Object.values(data).forEach(({ optionIndex }) => {
         if (optionIndex >= 0 && optionIndex < counts.length) counts[optionIndex]++;
       });
@@ -358,7 +360,7 @@ const OpinionPoll = () => {
     demoTimeoutsRef.current = [];
 
     const nextIndex = currentPollIndex + 1;
-    if (nextIndex >= samplePolls.length) {
+    if (nextIndex >= loadedQuestions.length) {
       if (!isDemo) {
         updatePlayerScore(sessionId, nickname, totalPointsRef.current).catch((err) =>
           console.warn('Score update skipped:', err.message)
@@ -366,7 +368,7 @@ const OpinionPoll = () => {
       }
       setPhase('finished');
     } else {
-      const nextLen = samplePolls[nextIndex].options.length;
+      const nextLen = loadedQuestions[nextIndex].options.length;
       const freshCounts = Array(nextLen).fill(0);
       voteCountsRef.current = freshCounts;
       myVoteRef.current = null;
@@ -386,13 +388,13 @@ const OpinionPoll = () => {
     demoTimeoutsRef.current.forEach(clearTimeout);
     demoTimeoutsRef.current = [];
 
-    const freshCounts = Array(samplePolls[0].options.length).fill(0);
+    const freshCounts = Array(loadedQuestions[0].options.length).fill(0);
     totalPointsRef.current = 0;
     myVoteRef.current = null;
     simulatedCountRef.current = 0;
     voteCountsRef.current = freshCounts;
 
-    reset(samplePolls[0].timeLimit);
+    reset(loadedQuestions[0].timeLimit);
     setPhase('waiting');
     setCountdown(3);
     setCurrentPollIndex(0);
@@ -406,7 +408,7 @@ const OpinionPoll = () => {
   };
 
   // ── Derived values ────────────────────────────────────────────────
-  const currentPoll = samplePolls[currentPollIndex];
+  const currentPoll = loadedQuestions[currentPollIndex];
   const totalVotes = voteCounts.reduce((a, b) => a + b, 0);
   const maxVotes = Math.max(...voteCounts, 0);
   const winnerIndex = voteCounts.indexOf(maxVotes);
@@ -453,6 +455,18 @@ const OpinionPoll = () => {
       </text>
     );
   };
+
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemo) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Session waiting room (live) ────────────────────────────────
   if (sessionStatus === 'waiting') {
@@ -533,7 +547,7 @@ const OpinionPoll = () => {
           <div className="text-center select-none">
             <p className="text-slate-400 text-xl font-semibold mb-8">Get Ready to Vote!</p>
             <p className="text-slate-500 text-sm mt-10">
-              {samplePolls.length} polls · {currentPoll.timeLimit} seconds each
+              {loadedQuestions.length} polls · {currentPoll?.timeLimit ?? 20} seconds each
             </p>
           </div>
         </div>
@@ -602,7 +616,7 @@ const OpinionPoll = () => {
             <h2 className="text-white font-bold text-lg mb-4">Poll Recap</h2>
             <div className="space-y-4">
               {pollResults.map((result, idx) => {
-                const poll = samplePolls[idx];
+                const poll = loadedQuestions[idx];
                 const max = Math.max(...result.voteCounts);
                 const winIdx = result.voteCounts.indexOf(max);
                 const total = result.voteCounts.reduce((a, b) => a + b, 0);
@@ -677,7 +691,7 @@ const OpinionPoll = () => {
             {currentPoll.category}
           </span>
           <span className="text-slate-400 text-sm font-medium">
-            Poll {currentPollIndex + 1} / {samplePolls.length}
+            Poll {currentPollIndex + 1} / {loadedQuestions.length}
           </span>
         </div>
         <span className="bg-slate-700 text-slate-400 text-xs px-2 py-1 rounded">
@@ -922,7 +936,7 @@ const OpinionPoll = () => {
                         onClick={handleNextPoll}
                         className="w-full bg-brand-red hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-colors text-lg shadow-lg"
                       >
-                        {currentPollIndex < samplePolls.length - 1
+                        {currentPollIndex < loadedQuestions.length - 1
                           ? 'Next Poll →'
                           : 'See Results 🏆'}
                       </button>

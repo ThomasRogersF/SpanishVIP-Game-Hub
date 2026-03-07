@@ -634,7 +634,8 @@ const QuestionEditor = () => {
         data = await getPublicTemplates(gameFilter);
       }
       setSets(data);
-    } catch {
+    } catch (err) {
+      console.error("fetchSets error:", err);
       setSets([]);
     } finally {
       setLoading(false);
