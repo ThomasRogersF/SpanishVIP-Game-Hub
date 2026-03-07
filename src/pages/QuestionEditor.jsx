@@ -639,7 +639,7 @@ const QuestionEditor = () => {
     } finally {
       setLoading(false);
     }
-  }, [filterType, libraryTab]);
+  }, [filterType, libraryTab, teacher?.teacherId]);
 
   useEffect(() => { fetchSets(); }, [fetchSets]);
 
@@ -729,8 +729,39 @@ const QuestionEditor = () => {
   };
 
   const handleSaveAndLaunch = async () => {
-    await handleSave();
-    navigate('/teacher');
+    if (!activeSet) return;
+    setSaveStatus('saving');
+    const ownerId = visibility === 'private' ? teacher?.teacherId : null;
+    try {
+      let setId = activeSet.id;
+      if (activeSet.id) {
+        await updateQuestionSet(activeSet.id, {
+          title: activeSet.title || 'Untitled Question Set',
+          gameType: activeSet.gameType,
+          category: activeSet.category,
+          questions: activeSet.questions,
+          questionCount: activeSet.questions.length,
+          visibility,
+          ownerId,
+          ownerName: visibility === 'private' ? teacher?.name : null,
+        });
+      } else {
+        setId = await createQuestionSet({
+          title: activeSet.title || 'Untitled Question Set',
+          gameType: activeSet.gameType,
+          category: activeSet.category,
+          questions: activeSet.questions,
+          questionCount: activeSet.questions.length,
+          ownerName: visibility === 'private' ? teacher?.name : null,
+        }, ownerId);
+        setActiveSet((prev) => ({ ...prev, id: setId }));
+      }
+      setSaveStatus('saved');
+      navigate(`/teacher?questionSetId=${setId}&gameType=${activeSet.gameType}&autostart=true`);
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Save & Launch error:', err);
+    }
   };
 
   const handleDelete = (setToDelete) => {

@@ -33,12 +33,20 @@ const TeacherDashboard = () => {
   useEffect(() => {
     const questionSetId = searchParams.get("questionSetId");
     const gameType = searchParams.get("gameType");
+    const autostart = searchParams.get("autostart");
     if (questionSetId) {
       getQuestionSet(questionSetId).then(qs => {
         if (qs) {
           setPreloadedSet(qs);
           setPreloadedSetTitle(qs.title);
           setSelectedGame(qs.gameType || gameType);
+
+          // Auto-trigger session creation if autostart=true
+          if (autostart === "true") {
+            setTimeout(() => {
+              handleCreateSessionWithSet(qs);
+            }, 500);
+          }
         }
       });
     }
@@ -107,11 +115,13 @@ const TeacherDashboard = () => {
     setNotice(null);
 
     try {
-      const questions = preloadedSet?.questions || [];
-      const { sessionId: newSessionId, pin } = await createSession(selectedGame, questions, teacher?.teacherId || 'teacher');
+      const questions = preloadedSet?.questions ?? [];
+      const gameType = preloadedSet?.gameType ?? selectedGame;
+      const { sessionId: newSessionId, pin } = await createSession(gameType, questions, teacher?.teacherId || 'teacher');
       setSessionId(newSessionId);
       setGeneratedPin(pin);
       setSessionStatus('waiting');
+      setSelectedGame(gameType);
 
       // Subscribe to RTDB for fast status updates
       subscribeToSession(newSessionId, (data) => {
@@ -124,6 +134,37 @@ const TeacherDashboard = () => {
       setSessionId(`demo-${demoPin}`);
       setSessionStatus('waiting');
       setNotice('Demo mode — Firebase not configured. Using a local PIN.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCreateSessionWithSet = async (qs) => {
+    setIsCreating(true);
+    setError(null);
+    try {
+      const questions = qs?.questions ?? [];
+      const gameType = qs?.gameType ?? selectedGame;
+      const { sessionId: newSessionId, pin } = await createSession(
+        gameType, questions, teacher?.teacherId || 'teacher'
+      );
+      setSessionId(newSessionId);
+      setGeneratedPin(pin);
+      setSessionStatus('waiting');
+      setSelectedGame(gameType);
+
+      if (db && newSessionId) {
+        const unsubscribe = onSnapshot(doc(db, 'sessions', newSessionId), (snap) => {
+          if (snap.exists()) {
+            const players = snap.data().players || {};
+            setJoinedPlayers(Object.values(players));
+            setPlayerCount(Object.keys(players).length);
+          }
+        });
+        return unsubscribe;
+      }
+    } catch (err) {
+      setError(err.message);
     } finally {
       setIsCreating(false);
     }
@@ -245,9 +286,15 @@ const TeacherDashboard = () => {
               <button
                 onClick={handleCreateSession}
                 disabled={isCreating}
-                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors text-lg mb-4"
+                className="w-full bg-red-600 hover:bg-red-500 disabled:bg-slate-700 text-white font-bold py-4 rounded-xl text-lg transition-all flex items-center justify-center gap-2 mb-4"
               >
-                {isCreating ? 'Creating...' : '⚡ Generate PIN & Start Session'}
+                {isCreating ? (
+                  <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating session...</>
+                ) : preloadedSet ? (
+                  <>🚀 Start Session — {preloadedSetTitle}</>
+                ) : (
+                  <>⚡ Generate PIN & Start Session</>
+                )}
               </button>
 
               {error && (
