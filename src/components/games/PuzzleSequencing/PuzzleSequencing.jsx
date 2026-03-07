@@ -25,6 +25,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTimer } from '../../../hooks/useTimer';
 import { updatePlayerScore } from '../../../firebase/leaderboard';
 import Leaderboard from '../../shared/Leaderboard';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -152,6 +153,7 @@ const DragOverlayTile = ({ label, colorClass }) => (
 
 const PuzzleSequencing = () => {
   const { sessionId = 'demo' } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, PUZZLES);
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
@@ -193,7 +195,7 @@ const PuzzleSequencing = () => {
   // ordered list of item indices (the student's current arrangement)
   const [orderedItems, setOrderedItems] = useState([]);
 
-  const puzzle = PUZZLES[puzzleIndex];
+  const puzzle = loadedQuestions[puzzleIndex];
 
   const totalScoreRef = useRef(0);
   const submitRef = useRef(null);
@@ -265,7 +267,7 @@ const PuzzleSequencing = () => {
   useEffect(() => {
     if (phase !== 'feedback') return;
     const t = setTimeout(async () => {
-      if (puzzleIndex + 1 < PUZZLES.length) {
+      if (puzzleIndex + 1 < loadedQuestions.length) {
         setPuzzleIndex((i) => i + 1);
         setShowHint(false);
         setPhase('playing');
@@ -313,6 +315,18 @@ const PuzzleSequencing = () => {
   // ---------------------------------------------------------------------------
   // Render helpers
   // ---------------------------------------------------------------------------
+
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemoMode(sessionId)) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Session waiting room (live) ────────────────────────────────
   if (sessionStatus === 'waiting') {
@@ -411,7 +425,7 @@ const PuzzleSequencing = () => {
         >
           <div className="text-7xl mb-4">🏆</div>
           <h1 className="text-3xl font-bold text-white mb-2">Game Over!</h1>
-          <p className="text-slate-400 mb-6">{PUZZLES.length} puzzles completed</p>
+          <p className="text-slate-400 mb-6">{loadedQuestions.length} puzzles completed</p>
           <div className="bg-brand-yellow/10 border border-brand-yellow/30 rounded-xl p-6 mb-8">
             <p className="text-brand-yellow text-sm font-semibold uppercase tracking-widest mb-1">
               Final Score
@@ -495,7 +509,7 @@ const PuzzleSequencing = () => {
       <div className="w-full max-w-2xl mb-4">
         <div className="flex items-center justify-between mb-3">
           <span className="text-slate-400 text-sm">
-            Puzzle {puzzleIndex + 1} / {PUZZLES.length}
+            Puzzle {puzzleIndex + 1} / {loadedQuestions.length}
           </span>
           <span className="text-brand-yellow font-bold">
             {totalScore.toLocaleString()} pts

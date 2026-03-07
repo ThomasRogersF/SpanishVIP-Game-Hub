@@ -9,6 +9,7 @@ import { isDemo } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 const SAMPLE_QUESTIONS = [
   {
@@ -50,6 +51,7 @@ const TIME_LIMIT = 20;
 const MultipleChoice = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, SAMPLE_QUESTIONS);
   const [sessionStatus, setSessionStatus] = useState('checking');
   const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
@@ -87,7 +89,7 @@ const MultipleChoice = () => {
       const nextIndex = currentIndex + 1;
       setShowFeedback(false);
       setSelectedAnswer(null);
-      if (nextIndex >= SAMPLE_QUESTIONS.length) {
+      if (nextIndex >= loadedQuestions.length) {
         setIsFinished(true);
       } else {
         setCurrentIndex(nextIndex);
@@ -122,7 +124,7 @@ const MultipleChoice = () => {
   const handleAnswer = (optionIndex) => {
     if (selectedAnswer !== null || showFeedback) return;
     pause();
-    const q = SAMPLE_QUESTIONS[currentIndex];
+    const q = loadedQuestions[currentIndex];
     const isCorrect = optionIndex === q.correct;
     const score = calculateScore(isCorrect, timeRemaining, TIME_LIMIT);
     setSelectedAnswer(optionIndex);
@@ -142,7 +144,7 @@ const MultipleChoice = () => {
 
   const getButtonClass = (index) => {
     const meta = OPTIONS_META[index];
-    const q = SAMPLE_QUESTIONS[currentIndex];
+    const q = loadedQuestions[currentIndex];
 
     if (!showFeedback) {
       return `${meta.bg} ${meta.hover} cursor-pointer active:scale-95`;
@@ -155,6 +157,18 @@ const MultipleChoice = () => {
     }
     return 'opacity-30 cursor-default';
   };
+
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemo(sessionId)) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Waiting room (live sessions) ────────────────────────────────
   if (sessionStatus === 'waiting') {
@@ -226,7 +240,7 @@ const MultipleChoice = () => {
           <div className="text-7xl mb-4">🏆</div>
           <h1 className="text-3xl font-bold text-white mb-1">Game Over!</h1>
           <p className="text-slate-400 mb-6">
-            You completed all {SAMPLE_QUESTIONS.length} questions
+            You completed all {loadedQuestions.length} questions
           </p>
 
           <div className="bg-brand-yellow/10 border border-brand-yellow/40 rounded-xl p-6 mb-6">
@@ -235,7 +249,7 @@ const MultipleChoice = () => {
             </p>
             <p className="text-5xl font-black text-white">{totalScore.toLocaleString()}</p>
             <p className="text-slate-400 text-sm mt-1">
-              Max possible: {(SAMPLE_QUESTIONS.length * 2000).toLocaleString()}
+              Max possible: {(loadedQuestions.length * 2000).toLocaleString()}
             </p>
           </div>
 
@@ -259,7 +273,7 @@ const MultipleChoice = () => {
   }
 
   // ── Game screen ──────────────────────────────────────────────────
-  const question = SAMPLE_QUESTIONS[currentIndex];
+  const question = loadedQuestions[currentIndex];
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex flex-col lg:flex-row">
@@ -270,12 +284,12 @@ const MultipleChoice = () => {
           <div className="flex items-center gap-4">
             <div>
               <p className="text-slate-400 text-xs mb-1">
-                Question {currentIndex + 1} / {SAMPLE_QUESTIONS.length}
+                Question {currentIndex + 1} / {loadedQuestions.length}
               </p>
               <div className="w-40 h-1.5 bg-slate-700 rounded-full">
                 <div
                   className="h-1.5 bg-brand-red rounded-full transition-all duration-500"
-                  style={{ width: `${((currentIndex + 1) / SAMPLE_QUESTIONS.length) * 100}%` }}
+                  style={{ width: `${((currentIndex + 1) / loadedQuestions.length) * 100}%` }}
                 />
               </div>
             </div>
@@ -352,7 +366,7 @@ const MultipleChoice = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.7, opacity: 0 }}
               className={`rounded-2xl px-10 py-8 text-center shadow-2xl ${
-                selectedAnswer === SAMPLE_QUESTIONS[currentIndex].correct
+                selectedAnswer === loadedQuestions[currentIndex].correct
                   ? 'bg-green-600'
                   : 'bg-red-700'
               }`}
@@ -360,14 +374,14 @@ const MultipleChoice = () => {
               <div className="text-6xl mb-2">
                 {selectedAnswer === -1
                   ? '⏰'
-                  : selectedAnswer === SAMPLE_QUESTIONS[currentIndex].correct
+                  : selectedAnswer === loadedQuestions[currentIndex].correct
                   ? '✅'
                   : '❌'}
               </div>
               <p className="text-white text-2xl font-black">
                 {selectedAnswer === -1
                   ? "Time's Up!"
-                  : selectedAnswer === SAMPLE_QUESTIONS[currentIndex].correct
+                  : selectedAnswer === loadedQuestions[currentIndex].correct
                   ? 'Correct!'
                   : 'Wrong!'}
               </p>

@@ -9,6 +9,7 @@ import { isDemo } from '../../../utils/sessionMode';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
+import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 
 // ── Data ─────────────────────────────────────────────────────────────
 const SAMPLE_QUESTIONS = [
@@ -30,6 +31,7 @@ const TIME_LIMIT = 5; // seconds per question
 const TrueOrFalse = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams();
+  const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, SAMPLE_QUESTIONS);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const [sessionStatus, setSessionStatus] = useState('checking');
 
@@ -75,7 +77,7 @@ const TrueOrFalse = () => {
   useEffect(() => {
     advanceRef.current = () => {
       const next = currentIndex + 1;
-      if (next >= SAMPLE_QUESTIONS.length) {
+      if (next >= loadedQuestions.length) {
         setPhase('finished');
       } else {
         setCurrentIndex(next);
@@ -128,7 +130,7 @@ const TrueOrFalse = () => {
     if (phase !== 'playing') return;
     pause();
 
-    const question = SAMPLE_QUESTIONS[currentIndex];
+    const question = loadedQuestions[currentIndex];
     const isCorrect = userAnswer === question.isTrue;
 
     // 500 base + up to 500 time bonus → max 1000 before streak multiplier
@@ -174,10 +176,22 @@ const TrueOrFalse = () => {
   };
 
   // ── Derived ──────────────────────────────────────────────────────
-  const currentQuestion = SAMPLE_QUESTIONS[currentIndex];
+  const currentQuestion = loadedQuestions[currentIndex];
   const barPct = (timeRemaining / TIME_LIMIT) * 100;
   const barColor =
     timeRemaining <= 2 ? 'bg-red-500' : timeRemaining <= 3 ? 'bg-yellow-400' : 'bg-green-500';
+
+  // ── Loading questions from session ─────────────────────────────────
+  if (questionsLoading && !isDemo(sessionId)) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Session waiting room (live) ────────────────────────────────
   if (sessionStatus === 'waiting') {
@@ -255,7 +269,7 @@ const TrueOrFalse = () => {
           <div className="text-center select-none">
             <p className="text-slate-400 text-xl font-semibold mb-8">Get Ready!</p>
             <p className="text-slate-500 text-sm mt-10">
-              {SAMPLE_QUESTIONS.length} questions · {TIME_LIMIT} seconds each
+              {loadedQuestions.length} questions · {TIME_LIMIT} seconds each
             </p>
           </div>
         </div>
@@ -265,7 +279,7 @@ const TrueOrFalse = () => {
 
   // ── FINISHED SCREEN ──────────────────────────────────────────────
   if (phase === 'finished') {
-    const accuracy = Math.round((correctCount / SAMPLE_QUESTIONS.length) * 100);
+    const accuracy = Math.round((correctCount / loadedQuestions.length) * 100);
     return (
       <div className="min-h-screen bg-[#0f172a] overflow-y-auto">
         <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
@@ -292,7 +306,7 @@ const TrueOrFalse = () => {
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-slate-900 rounded-xl p-4">
                 <p className="text-2xl font-black text-white">
-                  {correctCount}/{SAMPLE_QUESTIONS.length}
+                  {correctCount}/{loadedQuestions.length}
                 </p>
                 <p className="text-slate-400 text-xs mt-1">correct</p>
               </div>
@@ -354,10 +368,10 @@ const TrueOrFalse = () => {
         <div className="text-center">
           <p className="text-white font-semibold text-sm leading-none mb-1.5">
             Question {currentIndex + 1}
-            <span className="text-slate-500"> of {SAMPLE_QUESTIONS.length}</span>
+            <span className="text-slate-500"> of {loadedQuestions.length}</span>
           </p>
           <div className="flex gap-1 justify-center">
-            {SAMPLE_QUESTIONS.map((_, i) => (
+            {loadedQuestions.map((_, i) => (
               <div
                 key={i}
                 className={`h-1 w-4 rounded-full transition-colors duration-300 ${
