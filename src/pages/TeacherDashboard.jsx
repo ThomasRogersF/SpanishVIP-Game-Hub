@@ -5,7 +5,9 @@ import { db } from '../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { createSession, updateSessionStatus, subscribeToSession } from '../firebase/sessions';
 import { generatePin } from '../utils/generatePin';
-import { getQuestionSets } from '../firebase/questionSets';
+import { getQuestionSets, createQuestionSet } from '../firebase/questionSets';
+import { getCurrentTeacher, logoutTeacher } from '../firebase/teachers';
+import { PUBLIC_TEMPLATES } from '../firebase/seedTemplates';
 
 const GAME_OPTIONS = [
   { value: 'multiple-choice', label: '🎯 Multiple Choice Quiz' },
@@ -19,6 +21,32 @@ const GAME_OPTIONS = [
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
+  const teacher = getCurrentTeacher();
+
+  useEffect(() => {
+    if (!teacher) {
+      navigate('/teacher/login');
+    }
+  }, []);
+
+  const handleSignOut = () => {
+    logoutTeacher();
+    navigate('/teacher/login');
+  };
+
+  const handleSeedTemplates = async () => {
+    try {
+      for (const template of PUBLIC_TEMPLATES) {
+        await createQuestionSet({
+          ...template,
+          questionCount: template.questions.length,
+        }, null);
+      }
+      alert('Public templates seeded!');
+    } catch (err) {
+      alert('Error seeding templates: ' + err.message);
+    }
+  };
   const [selectedGame, setSelectedGame] = useState('multiple-choice');
   const [generatedPin, setGeneratedPin] = useState(null);
   const [sessionId, setSessionId] = useState(null);
@@ -119,10 +147,19 @@ const TeacherDashboard = () => {
           <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
         </Link>
         <div className="flex items-center gap-4">
+          {teacher && (
+            <span className="text-slate-400 text-sm hidden sm:inline">Hi, {teacher.name}</span>
+          )}
           <Link to="/editor" className="bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors border border-slate-700">
-            Question Editor
+            My Templates
           </Link>
-          <span className="text-slate-400 font-semibold text-sm">Teacher Dashboard</span>
+          <span className="text-slate-400 font-semibold text-sm hidden sm:inline">Teacher Dashboard</span>
+          <button
+            onClick={handleSignOut}
+            className="text-slate-500 hover:text-slate-300 text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </nav>
 
@@ -307,10 +344,15 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      <div className="text-center mt-8 pb-4">
-        <a href="/test" className="text-slate-600 hover:text-slate-400 text-xs transition-colors">
-          🧪 Multiplayer Test Suite
+      <div className="text-center mt-8 pb-4 space-y-2">
+        <a href="/test" className="text-slate-600 hover:text-slate-400 text-xs transition-colors block">
+          Multiplayer Test Suite
         </a>
+        {teacher?.name?.toLowerCase() === 'admin' && (
+          <button onClick={handleSeedTemplates} className="text-slate-600 hover:text-slate-400 text-xs transition-colors">
+            Seed Public Templates
+          </button>
+        )}
       </div>
     </div>
   );

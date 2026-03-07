@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { checkFirebaseConnection } from '../firebase/healthCheck';
+import { getCurrentTeacher } from '../firebase/teachers';
 
 const GAMES = [
   {
@@ -119,6 +120,7 @@ const ShootingStar = ({ delay, top }) => (
 
 const Hub = () => {
   const navigate = useNavigate();
+  const teacher = getCurrentTeacher();
   const [firebaseStatus, setFirebaseStatus] = useState("checking"); // checking | connected | failed
 
   useEffect(() => {
@@ -142,7 +144,7 @@ const Hub = () => {
       >
         <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
         <Link
-          to="/teacher"
+          to={teacher ? "/teacher" : "/teacher/login"}
           className="text-slate-300 border border-slate-600 text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
         >
           Teacher Dashboard
