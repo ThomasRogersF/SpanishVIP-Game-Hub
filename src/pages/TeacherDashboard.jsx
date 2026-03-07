@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { db } from '../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { createSession, updateSessionStatus, subscribeToSession } from '../firebase/sessions';
 import { generatePin } from '../utils/generatePin';
-import { getQuestionSets, createQuestionSet } from '../firebase/questionSets';
+import { getQuestionSets, createQuestionSet, getQuestionSet } from '../firebase/questionSets';
 import { getCurrentTeacher, logoutTeacher } from '../firebase/teachers';
 import { PUBLIC_TEMPLATES } from '../firebase/seedTemplates';
 
@@ -21,11 +21,26 @@ const GAME_OPTIONS = [
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const teacher = getCurrentTeacher();
 
   useEffect(() => {
     if (!teacher) {
       navigate('/teacher/login');
+    }
+  }, []);
+
+  useEffect(() => {
+    const questionSetId = searchParams.get("questionSetId");
+    const gameType = searchParams.get("gameType");
+    if (questionSetId) {
+      getQuestionSet(questionSetId).then(qs => {
+        if (qs) {
+          setPreloadedSet(qs);
+          setPreloadedSetTitle(qs.title);
+          setSelectedGame(qs.gameType || gameType);
+        }
+      });
     }
   }, []);
 
@@ -58,6 +73,8 @@ const TeacherDashboard = () => {
   const [notice, setNotice] = useState(null);
   const [questionLibrary, setQuestionLibrary] = useState([]);
   const [selectedQuestionSet, setSelectedQuestionSet] = useState('');
+  const [preloadedSet, setPreloadedSet] = useState(null);
+  const [preloadedSetTitle, setPreloadedSetTitle] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -90,7 +107,8 @@ const TeacherDashboard = () => {
     setNotice(null);
 
     try {
-      const { sessionId: newSessionId, pin } = await createSession(selectedGame, [], 'teacher');
+      const questions = preloadedSet?.questions || [];
+      const { sessionId: newSessionId, pin } = await createSession(selectedGame, questions, teacher?.teacherId || 'teacher');
       setSessionId(newSessionId);
       setGeneratedPin(pin);
       setSessionStatus('waiting');
@@ -162,6 +180,24 @@ const TeacherDashboard = () => {
           </button>
         </div>
       </nav>
+
+      <div className="max-w-5xl mx-auto px-4 pt-6">
+        {preloadedSet && (
+          <div className="flex items-center justify-between bg-green-950 border border-green-700 rounded-xl px-4 py-3 mb-4">
+            <div className="flex items-center gap-2 text-green-300">
+              <span>✅</span>
+              <span className="text-sm font-medium">Question set loaded: <strong>{preloadedSetTitle}</strong></span>
+              <span className="text-green-500 text-xs">({preloadedSet.questions?.length || 0} questions)</span>
+            </div>
+            <button
+              onClick={() => { setPreloadedSet(null); setPreloadedSetTitle(null); }}
+              className="text-green-600 hover:text-green-400 text-xs"
+            >
+              ✕ Clear
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="max-w-5xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Session Creator */}

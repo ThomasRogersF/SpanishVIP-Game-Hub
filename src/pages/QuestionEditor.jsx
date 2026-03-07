@@ -973,9 +973,9 @@ const QuestionEditor = () => {
                         {(s.ownerId === teacher?.teacherId || s.visibility === 'public') && (
                           <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">Delete</button>
                         )}
-                        <Link to={`/teacher`} className="text-yellow-400 hover:text-yellow-300 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={(e) => { e.stopPropagation(); navigate(`/teacher?questionSetId=${s.id}&gameType=${s.gameType}`); }} className="text-yellow-400 hover:text-yellow-300 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">
                           Use in Game &rarr;
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>
