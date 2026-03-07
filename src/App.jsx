@@ -8,6 +8,7 @@ import StudentJoin from './pages/StudentJoin';
 import GameResults from './pages/GameResults';
 import MultiplayerTest from './pages/MultiplayerTest';
 import QuestionEditor from './pages/QuestionEditor';
+import TeacherLogin from './pages/TeacherLogin';
 
 // Games
 import MultipleChoice from './components/games/MultipleChoice/MultipleChoice';
@@ -25,6 +26,7 @@ const App = () => {
         {/* Main pages */}
         <Route path="/" element={<Hub />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
+        <Route path="/teacher/login" element={<TeacherLogin />} />
         <Route path="/join" element={<StudentJoin />} />
         <Route path="/results/:sessionId" element={<GameResults />} />
         <Route path="/test" element={<MultiplayerTest />} />

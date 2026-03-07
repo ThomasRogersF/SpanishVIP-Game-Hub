@@ -9,7 +9,10 @@ import {
   deleteQuestionSet,
   getQuestionSets,
   getQuestionSet,
+  getPublicTemplates,
+  getPrivateTemplates,
 } from '../firebase/questionSets';
+import { getCurrentTeacher } from '../firebase/teachers';
 import { useAutoSave } from '../hooks/useAutoSave';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -588,12 +591,19 @@ function LibrarySkeleton() {
 const QuestionEditor = () => {
   const { questionSetId } = useParams();
   const navigate = useNavigate();
+  const teacher = getCurrentTeacher();
+
+  // Auth check
+  useEffect(() => {
+    if (!teacher) navigate('/teacher/login');
+  }, []);
 
   // Library state
   const [sets, setSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [libraryTab, setLibraryTab] = useState('private');
 
   // Editor state
   const [activeSet, setActiveSet] = useState(null);
@@ -602,6 +612,7 @@ const QuestionEditor = () => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [mobileTab, setMobileTab] = useState('library');
+  const [visibility, setVisibility] = useState('private');
 
   // DnD
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -615,14 +626,20 @@ const QuestionEditor = () => {
   const fetchSets = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getQuestionSets(filterType === 'all' ? null : filterType);
+      const gameFilter = filterType === 'all' ? null : filterType;
+      let data;
+      if (libraryTab === 'private') {
+        data = await getPrivateTemplates(teacher?.teacherId, gameFilter);
+      } else {
+        data = await getPublicTemplates(gameFilter);
+      }
       setSets(data);
     } catch {
       setSets([]);
     } finally {
       setLoading(false);
     }
-  }, [filterType]);
+  }, [filterType, libraryTab]);
 
   useEffect(() => { fetchSets(); }, [fetchSets]);
 
@@ -679,6 +696,7 @@ const QuestionEditor = () => {
   const handleSave = async () => {
     if (!activeSet) return;
     setSaveStatus('saving');
+    const ownerId = visibility === 'private' ? teacher?.teacherId : null;
     try {
       if (activeSet.id) {
         await updateQuestionSet(activeSet.id, {
@@ -687,6 +705,9 @@ const QuestionEditor = () => {
           category: activeSet.category,
           questions: activeSet.questions,
           questionCount: activeSet.questions.length,
+          visibility,
+          ownerId,
+          ownerName: visibility === 'private' ? teacher?.name : null,
         });
       } else {
         const id = await createQuestionSet({
@@ -695,7 +716,8 @@ const QuestionEditor = () => {
           category: activeSet.category,
           questions: activeSet.questions,
           questionCount: activeSet.questions.length,
-        });
+          ownerName: visibility === 'private' ? teacher?.name : null,
+        }, ownerId);
         setActiveSet((prev) => ({ ...prev, id }));
       }
       setSaveStatus('saved');
@@ -727,6 +749,7 @@ const QuestionEditor = () => {
 
   const handleSelectSet = (s) => {
     setActiveSet({ ...s });
+    setVisibility(s.visibility || 'private');
     setExpandedQ(null);
     setMobileTab('editor');
   };
@@ -895,6 +918,18 @@ const QuestionEditor = () => {
               className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
           </div>
 
+          {/* Library tabs: Private / Public */}
+          <div className="px-4 pb-2 flex gap-1 bg-slate-800 mx-4 rounded-xl p-1">
+            <button onClick={() => setLibraryTab('private')}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${libraryTab === 'private' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'}`}>
+              My Templates
+            </button>
+            <button onClick={() => setLibraryTab('public')}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${libraryTab === 'public' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'}`}>
+              Public Library
+            </button>
+          </div>
+
           {/* Filter tabs */}
           <div className="px-4 pb-2 flex flex-wrap gap-1">
             {[{ value: 'all', label: 'All' }, ...GAME_OPTIONS.map((g) => ({ value: g.value, label: g.emoji }))].map((f) => (
@@ -935,7 +970,9 @@ const QuestionEditor = () => {
                       <span className="text-slate-500 text-xs">{s.questionCount || s.questions?.length || 0} questions</span>
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => handleSelectSet(s)} className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">Edit</button>
-                        <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">Delete</button>
+                        {(s.ownerId === teacher?.teacherId || s.visibility === 'public') && (
+                          <button onClick={() => handleDelete(s)} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">Delete</button>
+                        )}
                         <Link to={`/teacher`} className="text-yellow-400 hover:text-yellow-300 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600" onClick={(e) => e.stopPropagation()}>
                           Use in Game &rarr;
                         </Link>
@@ -983,6 +1020,16 @@ const QuestionEditor = () => {
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
+                  <button
+                    onClick={() => setVisibility(v => v === 'private' ? 'public' : 'private')}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      visibility === 'private'
+                        ? 'bg-indigo-900 text-indigo-300 border border-indigo-600'
+                        : 'bg-slate-700 text-slate-300 border border-slate-600'
+                    }`}
+                  >
+                    {visibility === 'private' ? 'Private' : 'Public'}
+                  </button>
                   <div className="flex-1" />
                   <span className="text-slate-400 text-sm">{activeSet.questions.length} question{activeSet.questions.length !== 1 ? 's' : ''}
                     <span className="text-slate-600 ml-1" title={`Recommended: ${RECOMMENDED_COUNTS[activeSet.gameType]}`}>

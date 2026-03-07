@@ -1,0 +1,184 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { registerTeacher, loginTeacher, saveTeacherSession } from '../firebase/teachers';
+
+const TeacherLogin = () => {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('signin'); // signin | register
+  const [nameInput, setNameInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      setLoading(true);
+      const { teacherId, name } = await loginTeacher(nameInput, pinInput);
+      saveTeacherSession(teacherId, name);
+      navigate('/teacher');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (pinInput !== confirmPin) {
+      setError("PINs don't match");
+      return;
+    }
+    try {
+      setLoading(true);
+      const { teacherId, name } = await registerTeacher(nameInput, pinInput);
+      saveTeacherSession(teacherId, name);
+      navigate('/teacher');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4">
+      <div className="bg-slate-900 rounded-2xl p-8 max-w-md w-full border border-slate-700 shadow-xl">
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img src="/logo_hires_white.png" alt="SpanishVIP" className="max-h-12 object-contain" />
+        </div>
+
+        {/* Title */}
+        <h1 className="text-white text-2xl font-bold text-center mb-1">Teacher Portal</h1>
+        <p className="text-slate-400 text-sm text-center mb-6">Sign in to access your private templates</p>
+
+        {/* Tab Switcher */}
+        <div className="flex mb-6 bg-slate-800 rounded-xl p-1">
+          <button
+            onClick={() => { setTab('signin'); setError(''); }}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              tab === 'signin' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            onClick={() => { setTab('register'); setError(''); }}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              tab === 'register' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            Register
+          </button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-950 border border-red-700 text-red-300 rounded-lg p-3 text-sm mb-4">
+            {error}
+          </div>
+        )}
+
+        {/* Sign In Form */}
+        {tab === 'signin' && (
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <div>
+              <label className="block text-slate-300 text-sm font-semibold mb-1">Name</label>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Your full name"
+                required
+                className="w-full bg-slate-800 border border-slate-600 focus:border-yellow-400 text-white rounded-lg px-4 py-3 text-sm focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 text-sm font-semibold mb-1">PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="Enter your PIN"
+                required
+                className="w-full bg-slate-800 border border-slate-600 focus:border-yellow-400 text-white rounded-lg px-4 py-3 text-sm focus:outline-none transition-colors font-mono tracking-widest"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-3 rounded-xl transition-colors"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        )}
+
+        {/* Register Form */}
+        {tab === 'register' && (
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-slate-300 text-sm font-semibold mb-1">Full Name</label>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Your full name"
+                required
+                className="w-full bg-slate-800 border border-slate-600 focus:border-yellow-400 text-white rounded-lg px-4 py-3 text-sm focus:outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 text-sm font-semibold mb-1">Choose PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="4–8 digits"
+                required
+                className="w-full bg-slate-800 border border-slate-600 focus:border-yellow-400 text-white rounded-lg px-4 py-3 text-sm focus:outline-none transition-colors font-mono tracking-widest"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 text-sm font-semibold mb-1">Confirm PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={8}
+                value={confirmPin}
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="Re-enter PIN"
+                required
+                className="w-full bg-slate-800 border border-slate-600 focus:border-yellow-400 text-white rounded-lg px-4 py-3 text-sm focus:outline-none transition-colors font-mono tracking-widest"
+              />
+            </div>
+            <p className="text-slate-500 text-xs">4–8 digits. Remember this — it cannot be recovered.</p>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors"
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+        )}
+
+        {/* Bottom note */}
+        <p className="text-slate-600 text-xs text-center mt-6">
+          Student? Go to <Link to="/join" className="text-yellow-400 hover:text-yellow-300">/join</Link> to enter a game PIN
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default TeacherLogin;
