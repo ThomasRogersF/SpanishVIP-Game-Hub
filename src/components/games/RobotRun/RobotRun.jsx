@@ -207,6 +207,7 @@ const RobotRun = () => {
 
   // ── Question selection ─────────────────────────────────────────────────────
   const getNextQuestion = (ep) => {
+    if (!loadedQuestions || loadedQuestions.length === 0) return null;
     const tier = currentTierFor(ep);
     let pool = loadedQuestions.filter((q) => q.tier === tier && !answeredIdsRef.current.has(q.id));
     if (pool.length === 0) {
@@ -215,6 +216,7 @@ const RobotRun = () => {
       answeredIdsRef.current = new Set([...answeredIdsRef.current].filter((id) => !tierIds.has(id)));
       pool = loadedQuestions.filter((q) => q.tier === tier);
     }
+    if (pool.length === 0) return null;
     return pool[Math.floor(Math.random() * pool.length)];
   };
 
@@ -495,12 +497,13 @@ const RobotRun = () => {
     ));
 
   // ── Loading questions from session ─────────────────────────────────
-  if (questionsLoading && !isDemo) {
+  if (questionsLoading || loadedQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-lg">Loading questions...</p>
+          <p className="text-white text-lg font-semibold">Loading questions...</p>
+          <p className="text-slate-500 text-sm mt-2">Preparing your game</p>
         </div>
       </div>
     );

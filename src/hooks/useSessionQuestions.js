@@ -3,26 +3,30 @@ import { db } from "../firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import { isDemo } from "../utils/sessionMode";
 
-// Returns { questions, loading, error }
-// In demo mode: returns the fallback questions passed in
-// In live mode: fetches questions from the session document in Firestore
 export const useSessionQuestions = (sessionId, fallbackQuestions = []) => {
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [questions, setQuestions] = useState([]); // always start empty
+  const [loading, setLoading] = useState(true);   // always start loading
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!sessionId) {
+      setQuestions(fallbackQuestions);
+      setLoading(false);
+      return;
+    }
+
     const loadQuestions = async () => {
       setLoading(true);
+      setError(null);
 
-      // Demo mode — use fallback sample questions
+      // Demo mode — use fallback immediately
       if (isDemo(sessionId)) {
         setQuestions(fallbackQuestions);
         setLoading(false);
         return;
       }
 
-      // Live mode — fetch from Firestore session document
+      // Live mode — fetch from Firestore
       if (!db) {
         setQuestions(fallbackQuestions);
         setLoading(false);
@@ -32,23 +36,23 @@ export const useSessionQuestions = (sessionId, fallbackQuestions = []) => {
       try {
         const sessionSnap = await getDoc(doc(db, "sessions", sessionId));
         if (sessionSnap.exists()) {
-          const sessionData = sessionSnap.data();
-          const sessionQuestions = sessionData.questions;
-
-          // Use session questions if they exist and have content
-          // Otherwise fall back to sample questions
-          if (sessionQuestions && sessionQuestions.length > 0) {
+          const data = sessionSnap.data();
+          const sessionQuestions = data.questions;
+          if (Array.isArray(sessionQuestions) && sessionQuestions.length > 0) {
             setQuestions(sessionQuestions);
           } else {
+            // Session exists but has no questions — use fallback
+            console.warn("Session has no questions, using sample questions");
             setQuestions(fallbackQuestions);
           }
         } else {
+          console.warn("Session document not found, using sample questions");
           setQuestions(fallbackQuestions);
         }
       } catch (err) {
-        console.error("Failed to load session questions:", err);
+        console.error("useSessionQuestions error:", err);
         setError(err.message);
-        setQuestions(fallbackQuestions); // fallback on error
+        setQuestions(fallbackQuestions);
       } finally {
         setLoading(false);
       }

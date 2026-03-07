@@ -229,6 +229,7 @@ const WordCloudGame = () => {
 
   // ── Computed values ──────────────────────────────────────────────
   const currentPrompt = loadedQuestions[currentPromptIndex];
+  if (!currentPrompt) return null; // safety guard
   const currentTimeLimit = currentPrompt.timeLimit;
   const barPct = currentTimeLimit > 0 ? (timeRemaining / currentTimeLimit) * 100 : 0;
   const barColor =
@@ -261,6 +262,7 @@ const WordCloudGame = () => {
   const getWordColor = useCallback(
     (word) => {
       const prompt = loadedQuestions[currentPromptIndex];
+      if (!prompt) return '#64748b';
       if (prompt.hasCorrectAnswer && prompt.acceptedAnswers) {
         const isCorrect = prompt.acceptedAnswers.some(
           (a) => normalizeString(a) === normalizeString(word.text)
@@ -353,12 +355,13 @@ const WordCloudGame = () => {
   };
 
   // ── Loading questions from session ─────────────────────────────────
-  if (questionsLoading && !isDemo(sessionId)) {
+  if (questionsLoading || loadedQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-lg">Loading questions...</p>
+          <p className="text-white text-lg font-semibold">Loading questions...</p>
+          <p className="text-slate-500 text-sm mt-2">Preparing your game</p>
         </div>
       </div>
     );
