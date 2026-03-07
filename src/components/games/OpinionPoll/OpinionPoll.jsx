@@ -158,7 +158,7 @@ const OpinionPoll = () => {
   const [phase, setPhase] = useState('waiting');
   const [currentPollIndex, setCurrentPollIndex] = useState(0);
   const [voteCounts, setVoteCounts] = useState(() =>
-    Array(samplePolls[0].options.length).fill(0)
+    Array(samplePolls[0]?.options?.length ?? 4).fill(0)
   );
   const [myVote, setMyVote] = useState(null); // option index or null
   const [pollResults, setPollResults] = useState([]); // per-poll recap
@@ -173,7 +173,7 @@ const OpinionPoll = () => {
   const totalPointsRef = useRef(0);
   const phaseRef = useRef('waiting');
   const myVoteRef = useRef(null);
-  const voteCountsRef = useRef(Array(samplePolls[0].options.length).fill(0));
+  const voteCountsRef = useRef(Array(samplePolls[0]?.options?.length ?? 4).fill(0));
   const simulatedCountRef = useRef(0);
 
   // Keep refs in sync
@@ -314,7 +314,7 @@ const OpinionPoll = () => {
     const votesRef = ref(rtdb, `polls/${sessionId}/poll${currentPollIndex}/votes`);
     const handler = (snapshot) => {
       const data = snapshot.val() || {};
-      const counts = Array(loadedQuestions[currentPollIndex].options.length).fill(0);
+      const counts = Array(loadedQuestions[currentPollIndex]?.options?.length ?? 4).fill(0);
       Object.values(data).forEach(({ optionIndex }) => {
         if (optionIndex >= 0 && optionIndex < counts.length) counts[optionIndex]++;
       });
@@ -368,7 +368,7 @@ const OpinionPoll = () => {
       }
       setPhase('finished');
     } else {
-      const nextLen = loadedQuestions[nextIndex].options.length;
+      const nextLen = loadedQuestions[nextIndex]?.options?.length ?? 4;
       const freshCounts = Array(nextLen).fill(0);
       voteCountsRef.current = freshCounts;
       myVoteRef.current = null;
@@ -388,13 +388,13 @@ const OpinionPoll = () => {
     demoTimeoutsRef.current.forEach(clearTimeout);
     demoTimeoutsRef.current = [];
 
-    const freshCounts = Array(loadedQuestions[0].options.length).fill(0);
+    const freshCounts = Array(loadedQuestions[0]?.options?.length ?? 4).fill(0);
     totalPointsRef.current = 0;
     myVoteRef.current = null;
     simulatedCountRef.current = 0;
     voteCountsRef.current = freshCounts;
 
-    reset(loadedQuestions[0].timeLimit);
+    reset(loadedQuestions[0]?.timeLimit ?? 20);
     setPhase('waiting');
     setCountdown(3);
     setCurrentPollIndex(0);
@@ -409,6 +409,7 @@ const OpinionPoll = () => {
 
   // ── Derived values ────────────────────────────────────────────────
   const currentPoll = loadedQuestions[currentPollIndex];
+  if (!currentPoll) return null; // safety guard
   const totalVotes = voteCounts.reduce((a, b) => a + b, 0);
   const maxVotes = Math.max(...voteCounts, 0);
   const winnerIndex = voteCounts.indexOf(maxVotes);
@@ -457,12 +458,13 @@ const OpinionPoll = () => {
   };
 
   // ── Loading questions from session ─────────────────────────────────
-  if (questionsLoading && !isDemo) {
+  if (questionsLoading || loadedQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-lg">Loading questions...</p>
+          <p className="text-white text-lg font-semibold">Loading questions...</p>
+          <p className="text-slate-500 text-sm mt-2">Preparing your game</p>
         </div>
       </div>
     );

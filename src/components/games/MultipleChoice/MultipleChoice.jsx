@@ -125,6 +125,7 @@ const MultipleChoice = () => {
     if (selectedAnswer !== null || showFeedback) return;
     pause();
     const q = loadedQuestions[currentIndex];
+    if (!q) return;
     const isCorrect = optionIndex === q.correct;
     const score = calculateScore(isCorrect, timeRemaining, TIME_LIMIT);
     setSelectedAnswer(optionIndex);
@@ -145,6 +146,7 @@ const MultipleChoice = () => {
   const getButtonClass = (index) => {
     const meta = OPTIONS_META[index];
     const q = loadedQuestions[currentIndex];
+    if (!q) return meta.bg;
 
     if (!showFeedback) {
       return `${meta.bg} ${meta.hover} cursor-pointer active:scale-95`;
@@ -159,12 +161,13 @@ const MultipleChoice = () => {
   };
 
   // ── Loading questions from session ─────────────────────────────────
-  if (questionsLoading && !isDemo(sessionId)) {
+  if (questionsLoading || loadedQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-lg">Loading questions...</p>
+          <p className="text-white text-lg font-semibold">Loading questions...</p>
+          <p className="text-slate-500 text-sm mt-2">Preparing your game</p>
         </div>
       </div>
     );
@@ -274,6 +277,7 @@ const MultipleChoice = () => {
 
   // ── Game screen ──────────────────────────────────────────────────
   const question = loadedQuestions[currentIndex];
+  if (!question) return null; // safety guard
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex flex-col lg:flex-row">
@@ -366,7 +370,7 @@ const MultipleChoice = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.7, opacity: 0 }}
               className={`rounded-2xl px-10 py-8 text-center shadow-2xl ${
-                selectedAnswer === loadedQuestions[currentIndex].correct
+                selectedAnswer === loadedQuestions[currentIndex]?.correct
                   ? 'bg-green-600'
                   : 'bg-red-700'
               }`}
@@ -374,14 +378,14 @@ const MultipleChoice = () => {
               <div className="text-6xl mb-2">
                 {selectedAnswer === -1
                   ? '⏰'
-                  : selectedAnswer === loadedQuestions[currentIndex].correct
+                  : selectedAnswer === loadedQuestions[currentIndex]?.correct
                   ? '✅'
                   : '❌'}
               </div>
               <p className="text-white text-2xl font-black">
                 {selectedAnswer === -1
                   ? "Time's Up!"
-                  : selectedAnswer === loadedQuestions[currentIndex].correct
+                  : selectedAnswer === loadedQuestions[currentIndex]?.correct
                   ? 'Correct!'
                   : 'Wrong!'}
               </p>

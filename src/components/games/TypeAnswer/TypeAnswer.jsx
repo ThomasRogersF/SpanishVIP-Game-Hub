@@ -227,7 +227,7 @@ const TypeAnswer = () => {
   const demoHintCountRef = useRef(0);   // hints used by simulated demo players
   const demoPendingTimers = useRef([]); // timeout IDs for demo simulation
 
-  const question = loadedQuestions[qIndex];
+  const question = loadedQuestions[qIndex] ?? null;
 
   // Keep inputValueRef in sync (for stale-closure-safe submit)
   const handleInputChange = (e) => {
@@ -261,7 +261,7 @@ const TypeAnswer = () => {
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    if (phase !== 'playing') return;
+    if (phase !== 'playing' || !question) return;
     setTimerTransition('none');
     resetTimer(question.timeLimit);
     const t = setTimeout(() => {
@@ -483,12 +483,13 @@ const TypeAnswer = () => {
   }, [results]);
 
   // ── Loading questions from session ─────────────────────────────────
-  if (questionsLoading && !isDemoMode(sessionId)) {
+  if (questionsLoading || loadedQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-lg">Loading questions...</p>
+          <p className="text-white text-lg font-semibold">Loading questions...</p>
+          <p className="text-slate-500 text-sm mt-2">Preparing your game</p>
         </div>
       </div>
     );
@@ -718,6 +719,7 @@ const TypeAnswer = () => {
   // Playing / feedback screen
   // ---------------------------------------------------------------------------
 
+  if (!question) return null; // safety guard
   const catInfo = CATEGORY_STYLES[question.category] ?? { label: question.category, cls: 'bg-slate-700 text-slate-300' };
   const isFeedback = phase === 'feedback';
 

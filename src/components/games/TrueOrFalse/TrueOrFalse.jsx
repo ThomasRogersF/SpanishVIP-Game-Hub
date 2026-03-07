@@ -177,17 +177,19 @@ const TrueOrFalse = () => {
 
   // ── Derived ──────────────────────────────────────────────────────
   const currentQuestion = loadedQuestions[currentIndex];
+  if (!currentQuestion) return null; // safety guard
   const barPct = (timeRemaining / TIME_LIMIT) * 100;
   const barColor =
     timeRemaining <= 2 ? 'bg-red-500' : timeRemaining <= 3 ? 'bg-yellow-400' : 'bg-green-500';
 
   // ── Loading questions from session ─────────────────────────────────
-  if (questionsLoading && !isDemo(sessionId)) {
+  if (questionsLoading || loadedQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white text-lg">Loading questions...</p>
+          <p className="text-white text-lg font-semibold">Loading questions...</p>
+          <p className="text-slate-500 text-sm mt-2">Preparing your game</p>
         </div>
       </div>
     );
