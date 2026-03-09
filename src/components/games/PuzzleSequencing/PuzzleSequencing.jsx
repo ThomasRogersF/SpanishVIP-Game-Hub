@@ -26,6 +26,7 @@ import { useTimer } from '../../../hooks/useTimer';
 import { updatePlayerScore } from '../../../firebase/leaderboard';
 import Leaderboard from '../../shared/Leaderboard';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -280,6 +281,7 @@ const PuzzleSequencing = () => {
           } catch (_) {}
         }
         setPhase('finished');
+        recordScoreIfLoggedIn(totalScoreRef.current);
       }
     }, 3000);
     return () => clearTimeout(t);

@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { checkFirebaseConnection } from '../firebase/healthCheck';
-import { getCurrentTeacher } from '../firebase/teachers';
+import { getCurrentTeacher, logoutTeacher, subscribeToGlobalLeaderboard } from '../firebase/teachers';
 
 const GAMES = [
   {
@@ -120,12 +120,24 @@ const ShootingStar = ({ delay, top }) => (
 
 const Hub = () => {
   const navigate = useNavigate();
-  const teacher = getCurrentTeacher();
+  const currentAccount = getCurrentTeacher();
   const [firebaseStatus, setFirebaseStatus] = useState("checking"); // checking | connected | failed
+  const [leaderboardTab, setLeaderboardTab] = useState("allTime");
+  const [globalLeaderboard, setGlobalLeaderboard] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
 
   useEffect(() => {
     checkFirebaseConnection().then(setFirebaseStatus);
   }, []);
+
+  useEffect(() => {
+    setLeaderboardLoading(true);
+    const unsubscribe = subscribeToGlobalLeaderboard(leaderboardTab, (data) => {
+      setGlobalLeaderboard(data);
+      setLeaderboardLoading(false);
+    });
+    return unsubscribe;
+  }, [leaderboardTab]);
 
   const shootingStarConfigs = useMemo(() => [
     { delay: 2, top: 12 },
@@ -143,12 +155,24 @@ const Hub = () => {
         style={{ height: '52px' }}
       >
         <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
-        <Link
-          to={teacher ? "/teacher" : "/teacher/login"}
-          className="text-slate-300 border border-slate-600 text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-        >
-          Login
-        </Link>
+        {currentAccount ? (
+          <div className="flex items-center gap-3">
+            <span className="text-slate-300 text-sm">👤 {currentAccount.name}</span>
+            <button
+              onClick={() => { logoutTeacher(); window.location.reload(); }}
+              className="text-slate-500 hover:text-slate-300 text-xs border border-slate-700 rounded-lg px-3 py-1"
+            >
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <Link
+            to="/teacher/login"
+            className="text-slate-300 border border-slate-600 text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            Login
+          </Link>
+        )}
       </nav>
 
       {/* Hero Banner */}
@@ -344,6 +368,142 @@ const Hub = () => {
           ))}
         </div>
       </main>
+
+      {/* Global Leaderboard Section */}
+      <section className="max-w-4xl mx-auto px-6 py-12">
+        {/* Section Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white">🏆 Global Leaderboard</h2>
+            <p className="text-slate-400 text-sm mt-1">Top players across all SpanishVIP game sessions</p>
+          </div>
+          {/* Tab switcher */}
+          <div className="flex bg-slate-800 rounded-xl p-1">
+            <button
+              onClick={() => setLeaderboardTab("allTime")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                leaderboardTab === "allTime"
+                  ? "bg-yellow-400 text-black"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => setLeaderboardTab("weekly")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                leaderboardTab === "weekly"
+                  ? "bg-yellow-400 text-black"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              This Week
+            </button>
+          </div>
+        </div>
+
+        {/* Leaderboard Table */}
+        <div className="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden">
+          {leaderboardLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : globalLeaderboard.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-4xl mb-3">🎮</div>
+              <p className="text-slate-400">No scores yet — be the first on the leaderboard!</p>
+              <a href="/join" className="text-yellow-400 hover:text-yellow-300 text-sm mt-2 inline-block">
+                Join a game →
+              </a>
+            </div>
+          ) : (
+            <div>
+              {/* Top 3 podium */}
+              {globalLeaderboard.length >= 3 && (
+                <div className="flex items-end justify-center gap-4 p-8 bg-gradient-to-b from-slate-800 to-slate-900">
+                  {/* 2nd place */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-center"
+                  >
+                    <div className="text-3xl mb-2">🥈</div>
+                    <div className="bg-slate-700 rounded-t-xl px-6 py-4 h-24 flex flex-col items-center justify-end">
+                      <div className="text-slate-300 font-bold text-sm">{globalLeaderboard[1]?.name}</div>
+                      <div className="text-slate-400 text-xs">{leaderboardTab === "weekly" ? globalLeaderboard[1]?.weeklyPoints : globalLeaderboard[1]?.totalPoints} pts</div>
+                    </div>
+                  </motion.div>
+                  {/* 1st place */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center"
+                  >
+                    <div className="text-4xl mb-2">🥇</div>
+                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-t-xl px-8 py-4 h-32 flex flex-col items-center justify-end">
+                      <div className="text-yellow-300 font-bold">{globalLeaderboard[0]?.name}</div>
+                      <div className="text-yellow-400/70 text-xs">{leaderboardTab === "weekly" ? globalLeaderboard[0]?.weeklyPoints : globalLeaderboard[0]?.totalPoints} pts</div>
+                    </div>
+                  </motion.div>
+                  {/* 3rd place */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-center"
+                  >
+                    <div className="text-3xl mb-2">🥉</div>
+                    <div className="bg-slate-700 rounded-t-xl px-6 py-4 h-16 flex flex-col items-center justify-end">
+                      <div className="text-slate-300 font-bold text-sm">{globalLeaderboard[2]?.name}</div>
+                      <div className="text-slate-400 text-xs">{leaderboardTab === "weekly" ? globalLeaderboard[2]?.weeklyPoints : globalLeaderboard[2]?.totalPoints} pts</div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+
+              {/* Full list (4th place onwards) */}
+              <div className="divide-y divide-slate-800">
+                {globalLeaderboard.slice(3).map((player, index) => (
+                  <motion.div
+                    key={player.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="flex items-center gap-4 px-6 py-4 hover:bg-slate-800/50 transition-colors"
+                  >
+                    <span className="text-slate-500 font-mono text-sm w-6 text-right">{player.rank}</span>
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-slate-300">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-white font-medium text-sm">{player.name}</div>
+                      <div className="text-slate-500 text-xs">
+                        {leaderboardTab === "weekly" ? player.weeklyGamesPlayed : player.gamesPlayed} games played
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-yellow-400 font-bold text-sm">
+                        {leaderboardTab === "weekly" ? player.weeklyPoints : player.totalPoints} pts
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Sign up CTA at bottom */}
+              <div className="text-center py-6 border-t border-slate-800">
+                <p className="text-slate-500 text-sm">
+                  Want to appear here?{" "}
+                  <a href="/teacher/login" className="text-yellow-400 hover:text-yellow-300 font-medium">
+                    Create a free account →
+                  </a>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-slate-950 border-t border-slate-800 py-6 px-6 flex items-center justify-between text-slate-500 text-sm flex-shrink-0">

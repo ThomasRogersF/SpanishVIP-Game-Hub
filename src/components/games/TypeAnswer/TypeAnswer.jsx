@@ -10,6 +10,7 @@ import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -396,6 +397,7 @@ const TypeAnswer = () => {
           } catch (_) {}
         }
         setPhase('finished');
+        recordScoreIfLoggedIn(totalScoreRef.current);
       }
     }, 2500);
     return () => clearTimeout(t);
