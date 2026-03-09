@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PinEntry from '../components/shared/PinEntry';
 import { joinSession } from '../firebase/sessions';
+import { getCurrentTeacher, logoutTeacher } from '../firebase/teachers';
 
 const friendlyError = (message) => {
   if (!message) return 'Something went wrong. Please try again.';
@@ -16,6 +17,9 @@ const StudentJoin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const currentAccount = getCurrentTeacher();
+  const isStudentLoggedIn = currentAccount?.role === "student";
 
   const handleSubmit = async ({ pin, nickname }) => {
     setLoading(true);
@@ -63,6 +67,29 @@ const StudentJoin = () => {
             <p className="text-slate-400 text-sm mb-8">
               Enter the PIN from your teacher to jump in.
             </p>
+
+            {/* Logged-in student banner */}
+            {isStudentLoggedIn && (
+              <div className="flex items-center justify-between bg-blue-950 border border-blue-700 rounded-xl px-4 py-2 mb-4">
+                <div className="flex items-center gap-2 text-blue-300 text-sm">
+                  <span>👤</span>
+                  <span>Signed in as <strong>{currentAccount.name}</strong> — your scores will be tracked!</span>
+                </div>
+                <button
+                  onClick={() => { logoutTeacher(); window.location.reload(); }}
+                  className="text-blue-600 hover:text-blue-400 text-xs"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+
+            {/* Guest message */}
+            {!isStudentLoggedIn && (
+              <p className="text-slate-500 text-xs text-center mb-4">
+                Playing as guest — <a href="/teacher/login" className="text-yellow-400 hover:text-yellow-300">create an account</a> to track your scores on the leaderboard
+              </p>
+            )}
 
             <PinEntry onSubmit={handleSubmit} loading={loading} error={error} />
 

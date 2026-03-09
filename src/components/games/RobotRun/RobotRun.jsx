@@ -10,6 +10,7 @@ import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 // ── Static Data ───────────────────────────────────────────────────────────────
 
@@ -306,11 +307,13 @@ const RobotRun = () => {
       if (ep >= 100) {
         writeScore();
         setPhase('escaped');
+        recordScoreIfLoggedIn(playerScoreRef.current);
         return;
       }
       if (rp <= 0) {
         writeScore();
         setPhase('caught');
+        recordScoreIfLoggedIn(playerScoreRef.current);
         return;
       }
       const next = getNextQuestion(ep);

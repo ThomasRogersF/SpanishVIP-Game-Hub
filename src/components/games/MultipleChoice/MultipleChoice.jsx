@@ -10,6 +10,7 @@ import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 const SAMPLE_QUESTIONS = [
   {
@@ -91,6 +92,7 @@ const MultipleChoice = () => {
       setSelectedAnswer(null);
       if (nextIndex >= loadedQuestions.length) {
         setIsFinished(true);
+        recordScoreIfLoggedIn(totalScore);
       } else {
         setCurrentIndex(nextIndex);
       }

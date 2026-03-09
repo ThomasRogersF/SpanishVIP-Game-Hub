@@ -10,6 +10,7 @@ import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 // ── Data ─────────────────────────────────────────────────────────────
 const SAMPLE_QUESTIONS = [
@@ -79,6 +80,7 @@ const TrueOrFalse = () => {
       const next = currentIndex + 1;
       if (next >= loadedQuestions.length) {
         setPhase('finished');
+        recordScoreIfLoggedIn(totalScore);
       } else {
         setCurrentIndex(next);
         setPhase('playing');

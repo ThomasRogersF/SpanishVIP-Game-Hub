@@ -19,6 +19,7 @@ import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 // ── Data ─────────────────────────────────────────────────────────────
 const samplePolls = [
@@ -367,6 +368,7 @@ const OpinionPoll = () => {
         );
       }
       setPhase('finished');
+      recordScoreIfLoggedIn(totalPointsRef.current);
     } else {
       const nextLen = loadedQuestions[nextIndex]?.options?.length ?? 4;
       const freshCounts = Array(nextLen).fill(0);

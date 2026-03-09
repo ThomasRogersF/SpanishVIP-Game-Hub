@@ -10,6 +10,7 @@ import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
+import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -153,6 +154,7 @@ const WordCloudGame = () => {
       const next = currentPromptIndex + 1;
       if (next >= loadedQuestions.length) {
         setPhase('finished');
+        recordScoreIfLoggedIn(totalScore);
       } else {
         setCurrentPromptIndex(next);
         setInputText('');
