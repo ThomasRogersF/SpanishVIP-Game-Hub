@@ -6,7 +6,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { createSession, updateSessionStatus, subscribeToSession } from '../firebase/sessions';
 import { generatePin } from '../utils/generatePin';
 import { getQuestionSets, createQuestionSet, getQuestionSet } from '../firebase/questionSets';
-import { getCurrentTeacher, logoutTeacher } from '../firebase/teachers';
+import { getCurrentTeacher, logoutTeacher, migrateTeacherDocuments } from '../firebase/teachers';
 import { PUBLIC_TEMPLATES } from '../firebase/seedTemplates';
 
 const GAME_OPTIONS = [
@@ -434,6 +434,12 @@ const TeacherDashboard = () => {
         {teacher?.name?.toLowerCase() === 'admin' && (
           <button onClick={handleSeedTemplates} className="text-slate-600 hover:text-slate-400 text-xs transition-colors">
             Seed Public Templates
+          </button>
+        )}
+        {teacher?.name?.toLowerCase() === "admin" && (
+          <button onClick={async () => { await migrateTeacherDocuments(); alert("✅ Accounts migrated!"); }}
+            className="text-slate-600 hover:text-slate-400 text-xs mt-2">
+            🔧 Migrate Accounts
           </button>
         )}
       </div>
