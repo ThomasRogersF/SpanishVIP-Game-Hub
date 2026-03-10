@@ -97,6 +97,30 @@ const CategoryBadge = ({ category }) => (
   </span>
 );
 
+// ── Error boundary for ReactWordcloud ─────────────────────────────────
+class WordCloudErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error) {
+    console.error("WordCloud render error:", error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
+          Word cloud unavailable — waiting for more responses
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ── Main component ────────────────────────────────────────────────────
 const WordCloudGame = () => {
   const navigate = useNavigate();
@@ -232,7 +256,7 @@ const WordCloudGame = () => {
   // ── Computed values ──────────────────────────────────────────────
   const currentPrompt = loadedQuestions[currentPromptIndex];
   if (!currentPrompt) return null; // safety guard
-  const currentTimeLimit = currentPrompt.timeLimit;
+  const currentTimeLimit = currentPrompt?.timeLimit ?? 30;
   const barPct = currentTimeLimit > 0 ? (timeRemaining / currentTimeLimit) * 100 : 0;
   const barColor =
     timeRemaining <= 5 ? 'bg-red-500' : timeRemaining <= 10 ? 'bg-yellow-400' : 'bg-green-500';
@@ -243,7 +267,7 @@ const WordCloudGame = () => {
     const promptResponses = responses[currentPromptIndex] || {};
     const allAnswers = Object.values(promptResponses)
       .map((r) => r?.answer?.trim())
-      .filter(Boolean);
+      .filter((a) => a && typeof a === 'string' && a.length > 0);
 
     const freq = {};
     const display = {};
@@ -263,6 +287,7 @@ const WordCloudGame = () => {
   // Per-word color: green=correct, gray=wrong (quiz), hashed palette (poll)
   const getWordColor = useCallback(
     (word) => {
+      if (!word || !word.text) return POLL_COLORS[0];
       const prompt = loadedQuestions[currentPromptIndex];
       if (!prompt) return '#64748b';
       if (prompt.hasCorrectAnswer && prompt.acceptedAnswers) {
@@ -584,7 +609,7 @@ const WordCloudGame = () => {
         <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
           <span className="text-brand-red font-black text-xl">🇪🇸 SpanishVIP</span>
           <div className="flex items-center gap-3">
-            <CategoryBadge category={currentPrompt.category} />
+            <CategoryBadge category={currentPrompt?.category} />
             <span className="text-slate-400 text-sm font-medium">
               Prompt {currentPromptIndex + 1} of {loadedQuestions.length}
             </span>
@@ -624,11 +649,11 @@ const WordCloudGame = () => {
               >
                 {/* Prompt recap bar */}
                 <div className="bg-slate-800 rounded-2xl px-6 py-4 text-center mb-4 border border-slate-700">
-                  <p className="text-slate-300 text-sm leading-snug mb-1">{currentPrompt.prompt}</p>
+                  <p className="text-slate-300 text-sm leading-snug mb-1">{currentPrompt?.prompt}</p>
                   <p className="text-slate-500 text-xs">
                     <span className="text-brand-yellow font-bold">{responseCount}</span>{' '}
                     {responseCount === 1 ? 'student' : 'students'} responded
-                    {currentPrompt.hasCorrectAnswer && (
+                    {currentPrompt?.hasCorrectAnswer && (
                       <span className="ml-2 text-slate-600">· 🟢 correct · 🩶 other</span>
                     )}
                   </p>
@@ -640,11 +665,13 @@ const WordCloudGame = () => {
                     className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden"
                     style={{ height: '380px', width: '100%' }}
                   >
-                    <ReactWordcloud
-                      words={wordData}
-                      options={WORD_CLOUD_OPTIONS}
-                      callbacks={wordCloudCallbacks}
-                    />
+                    <WordCloudErrorBoundary>
+                      <ReactWordcloud
+                        words={wordData}
+                        options={WORD_CLOUD_OPTIONS}
+                        callbacks={wordCloudCallbacks}
+                      />
+                    </WordCloudErrorBoundary>
                   </div>
                 ) : (
                   <div className="bg-slate-800 rounded-2xl border border-slate-700 h-64 flex items-center justify-center">
@@ -712,7 +739,7 @@ const WordCloudGame = () => {
 
         {/* Category badge */}
         <div className="w-20 flex justify-end">
-          <CategoryBadge category={currentPrompt.category} />
+          <CategoryBadge category={currentPrompt?.category} />
         </div>
       </div>
 
@@ -738,9 +765,9 @@ const WordCloudGame = () => {
               {/* Prompt card */}
               <div className="bg-slate-800 rounded-2xl p-8 text-center border border-slate-700 shadow-xl mb-6">
                 <p className="text-2xl md:text-3xl font-bold text-white leading-snug">
-                  {currentPrompt.prompt}
+                  {currentPrompt?.prompt}
                 </p>
-                {currentPrompt.hasCorrectAnswer && (
+                {currentPrompt?.hasCorrectAnswer && (
                   <p className="text-slate-500 text-xs mt-2">quiz mode — exact match scores 800 pts</p>
                 )}
               </div>
@@ -803,7 +830,7 @@ const WordCloudGame = () => {
                       +{lastPoints} pts
                     </p>
                   )}
-                  {lastPoints === 0 && currentPrompt.hasCorrectAnswer && (
+                  {lastPoints === 0 && currentPrompt?.hasCorrectAnswer && (
                     <p className="text-slate-400 text-sm mb-1">Not quite — try the next one!</p>
                   )}
                   <p className="text-slate-500 text-sm mt-1">
