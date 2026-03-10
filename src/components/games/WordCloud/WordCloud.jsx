@@ -255,7 +255,6 @@ const WordCloudGame = () => {
 
   // ── Computed values ──────────────────────────────────────────────
   const currentPrompt = loadedQuestions[currentPromptIndex];
-  if (!currentPrompt) return null; // safety guard
   const currentTimeLimit = currentPrompt?.timeLimit ?? 30;
   const barPct = currentTimeLimit > 0 ? (timeRemaining / currentTimeLimit) * 100 : 0;
   const barColor =
@@ -263,6 +262,7 @@ const WordCloudGame = () => {
   const responseCount = Object.keys(responses[currentPromptIndex] || {}).length;
 
   // Aggregate responses for the current prompt into word cloud data
+  // NOTE: useMemo must be called before any conditional return (rules of hooks)
   const wordData = useMemo(() => {
     const promptResponses = responses[currentPromptIndex] || {};
     const allAnswers = Object.values(promptResponses)
@@ -303,6 +303,9 @@ const WordCloudGame = () => {
   );
 
   const wordCloudCallbacks = useMemo(() => ({ getWordColor }), [getWordColor]);
+
+  // Safety guard — must appear AFTER all hook declarations (rules of hooks)
+  if (!currentPrompt) return null;
 
   // Top N most common answers for a given prompt (for recap)
   const getTopAnswers = (promptIndex, n = 3) => {
