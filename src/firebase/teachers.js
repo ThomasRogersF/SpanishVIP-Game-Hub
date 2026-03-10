@@ -182,6 +182,24 @@ export const subscribeToGlobalLeaderboard = (type = "allTime", callback) => {
   });
 };
 
+// Migrate teacher documents missing required fields
+export const migrateTeacherDocuments = async () => {
+  if (!db) return;
+  const snap = await getDocs(collection(db, "teachers"));
+  const updates = snap.docs
+    .filter(d => d.data().totalPoints === undefined)
+    .map(d => updateDoc(doc(db, "teachers", d.id), {
+      totalPoints: 0,
+      weeklyPoints: 0,
+      gamesPlayed: 0,
+      weeklyGamesPlayed: 0,
+      weeklyResetAt: serverTimestamp(),
+      role: d.data().role || "teacher",
+    }));
+  await Promise.all(updates);
+  console.log(`Migrated ${updates.length} documents`);
+};
+
 // Required Firestore indexes for global leaderboard:
 // 1. teachers collection: totalPoints DESC
 // 2. teachers collection: weeklyPoints DESC
