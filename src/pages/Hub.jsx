@@ -157,6 +157,14 @@ const Hub = () => {
         <img src="/logo_hires_white.png" alt="SpanishVIP" className="h-8 object-contain" />
         {currentAccount ? (
           <div className="flex items-center gap-3">
+            {currentAccount.role === "teacher" && (
+              <a
+                href="/teacher"
+                className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-4 py-2 rounded-lg text-sm transition-all"
+              >
+                Teacher Dashboard
+              </a>
+            )}
             <span className="text-slate-300 text-sm">👤 {currentAccount.name}</span>
             <button
               onClick={() => { logoutTeacher(); window.location.reload(); }}
@@ -166,12 +174,12 @@ const Hub = () => {
             </button>
           </div>
         ) : (
-          <Link
-            to="/teacher/login"
-            className="text-slate-300 border border-slate-600 text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+          <a
+            href="/teacher/login"
+            className="border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm transition-all"
           >
             Login
-          </Link>
+          </a>
         )}
       </nav>
 

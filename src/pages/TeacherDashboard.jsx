@@ -25,8 +25,15 @@ const TeacherDashboard = () => {
   const teacher = getCurrentTeacher();
 
   useEffect(() => {
-    if (!teacher) {
+    const account = getCurrentTeacher();
+    if (!account) {
       navigate('/teacher/login');
+      return;
+    }
+    // Block students from accessing teacher dashboard
+    if (account.role === 'student') {
+      navigate('/join');
+      return;
     }
   }, []);
 
