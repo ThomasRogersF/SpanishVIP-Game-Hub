@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isDemo as isDemoMode } from '../../../utils/sessionMode';
+import { getCurrentTeacher } from '../../../firebase/teachers';
 import { db } from '../../../firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
@@ -154,6 +155,9 @@ const DragOverlayTile = ({ label, colorClass }) => (
 
 const PuzzleSequencing = () => {
   const { sessionId = 'demo' } = useParams();
+  const isDemoFlag = isDemoMode(sessionId);
+  const currentAccount = getCurrentTeacher();
+  const isTeacher = currentAccount?.role === "teacher";
   const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, PUZZLES);
   const navigate = useNavigate();
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
@@ -439,24 +443,62 @@ const PuzzleSequencing = () => {
             </p>
           </div>
           <Leaderboard sessionId={sessionId} />
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => {
-                setPuzzleIndex(0);
-                setTotalScore(0);
-                totalScoreRef.current = 0;
-                setPhase('waiting');
-              }}
-              className="flex-1 bg-brand-red hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-colors"
-            >
-              Play Again
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-colors"
-            >
-              Hub
-            </button>
+          {/* Finish screen action buttons */}
+          <div className="flex flex-col gap-3 mt-6">
+            {isDemoFlag ? (
+              <>
+                <button
+                  onClick={() => {
+                    setPuzzleIndex(0);
+                    setTotalScore(0);
+                    totalScoreRef.current = 0;
+                    setPhase('waiting');
+                  }}
+                  className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 px-8 rounded-xl text-lg transition-all"
+                >
+                  🔄 Play Again
+                </button>
+                <a
+                  href="/"
+                  className="text-slate-400 hover:text-white text-sm text-center transition-colors"
+                >
+                  ← Back to Hub
+                </a>
+              </>
+            ) : isTeacher ? (
+              <>
+                <a
+                  href="/teacher"
+                  className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 px-8 rounded-xl text-lg transition-all text-center"
+                >
+                  🎮 Start New Session
+                </a>
+                <a
+                  href="/"
+                  className="text-slate-400 hover:text-white text-sm text-center transition-colors"
+                >
+                  ← Back to Hub
+                </a>
+              </>
+            ) : (
+              <>
+                <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+                  <p className="text-slate-300 text-sm">⏳ Ask your teacher to start a new game</p>
+                </div>
+                <a
+                  href="/join"
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-xl text-lg transition-all text-center"
+                >
+                  🚪 Back to Lobby
+                </a>
+                <a
+                  href="/"
+                  className="text-slate-400 hover:text-white text-sm text-center transition-colors"
+                >
+                  ← Back to Hub
+                </a>
+              </>
+            )}
           </div>
         </motion.div>
       </div>

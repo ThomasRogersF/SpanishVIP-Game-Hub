@@ -17,6 +17,7 @@ import { ref, set, onValue, off } from 'firebase/database';
 import { doc, onSnapshot } from 'firebase/firestore';
 import Leaderboard from '../../shared/Leaderboard';
 import { isDemo as isDemoCheck } from '../../../utils/sessionMode';
+import { getCurrentTeacher } from '../../../firebase/teachers';
 import { useSyncedCountdown } from '../../../hooks/useSyncedCountdown';
 import { useSessionQuestions } from '../../../hooks/useSessionQuestions';
 import { recordScoreIfLoggedIn } from '../../../utils/recordScore';
@@ -136,6 +137,8 @@ const OpinionPoll = () => {
   const { questions: loadedQuestions, loading: questionsLoading } = useSessionQuestions(sessionId, samplePolls);
   const nickname = localStorage.getItem('svip_nickname') || 'Player';
   const isDemo = isDemoCheck(sessionId);
+  const currentAccount = getCurrentTeacher();
+  const isTeacher = currentAccount?.role === "teacher";
   const [sessionStatus, setSessionStatus] = useState('checking');
   const { countdown: syncedCountdown, isReady } = useSyncedCountdown(sessionId);
 
@@ -660,20 +663,57 @@ const OpinionPoll = () => {
             <Leaderboard sessionId={sessionId || 'demo'} />
           </div>
 
-          {/* Buttons */}
-          <div className="flex gap-3 pb-6">
-            <button
-              onClick={handlePlayAgain}
-              className="flex-1 bg-brand-red hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-colors text-lg shadow-lg"
-            >
-              Play Again
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-4 rounded-xl transition-colors text-lg"
-            >
-              Back to Hub
-            </button>
+          {/* Finish screen action buttons */}
+          <div className="flex flex-col gap-3 mt-6 pb-6">
+            {isDemo ? (
+              <>
+                <button
+                  onClick={handlePlayAgain}
+                  className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 px-8 rounded-xl text-lg transition-all"
+                >
+                  🔄 Play Again
+                </button>
+                <a
+                  href="/"
+                  className="text-slate-400 hover:text-white text-sm text-center transition-colors"
+                >
+                  ← Back to Hub
+                </a>
+              </>
+            ) : isTeacher ? (
+              <>
+                <a
+                  href="/teacher"
+                  className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-3 px-8 rounded-xl text-lg transition-all text-center"
+                >
+                  🎮 Start New Session
+                </a>
+                <a
+                  href="/"
+                  className="text-slate-400 hover:text-white text-sm text-center transition-colors"
+                >
+                  ← Back to Hub
+                </a>
+              </>
+            ) : (
+              <>
+                <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+                  <p className="text-slate-300 text-sm">⏳ Ask your teacher to start a new game</p>
+                </div>
+                <a
+                  href="/join"
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-8 rounded-xl text-lg transition-all text-center"
+                >
+                  🚪 Back to Lobby
+                </a>
+                <a
+                  href="/"
+                  className="text-slate-400 hover:text-white text-sm text-center transition-colors"
+                >
+                  ← Back to Hub
+                </a>
+              </>
+            )}
           </div>
         </motion.div>
       </div>
