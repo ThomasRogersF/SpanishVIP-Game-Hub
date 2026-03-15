@@ -248,7 +248,7 @@ const PuzzleSequencing = () => {
       const shuffled = [...indices].sort(() => 0.5 - Math.random());
       setOrderedItems(shuffled);
     }
-  }, [puzzleIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [puzzleIndex, loadedQuestions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Start timer (delayed to allow enter animation)
   useEffect(() => {
