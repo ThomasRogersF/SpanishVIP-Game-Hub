@@ -76,7 +76,15 @@ const TeacherLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4 relative">
+      <div className="absolute top-6 left-6">
+        <a
+          href="/"
+          className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
+        >
+          ← Back to Home
+        </a>
+      </div>
       <div className="bg-slate-900 rounded-2xl p-8 max-w-md w-full border border-slate-700 shadow-xl">
         {/* Logo */}
         <div className="flex justify-center mb-6">

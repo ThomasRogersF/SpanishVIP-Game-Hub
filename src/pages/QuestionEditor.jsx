@@ -595,7 +595,16 @@ const QuestionEditor = () => {
 
   // Auth check
   useEffect(() => {
-    if (!teacher) navigate('/teacher/login');
+    const account = getCurrentTeacher();
+    if (!account) {
+      navigate('/teacher/login');
+      return;
+    }
+    // Block students from accessing question editor
+    if (account.role === 'student') {
+      navigate('/join');
+      return;
+    }
   }, []);
 
   // Library state
